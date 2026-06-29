@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Copy, Check, Wallet, Usb, Trash2, Shield } from 'lucide-react';
+import { Plus, Copy, Check, Wallet, Usb, Trash2, Shield, ExternalLink } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -208,6 +208,25 @@ export function WalletDrawer({ open, onOpenChange }: WalletDrawerProps) {
               Backup Keys
             </button>
           )}
+        </div>
+
+        {/* Legal */}
+        <div className="px-4 py-3 border-t border-white/10 flex items-center justify-center gap-4">
+          <button
+            onClick={() => window.open('https://coldstar.dev/seeker-privacy', '_blank', 'noopener,noreferrer')}
+            className="text-xs text-white/50 hover:text-white transition-colors flex items-center gap-1"
+          >
+            Privacy Policy
+            <ExternalLink className="w-3 h-3" />
+          </button>
+          <span className="text-white/20">·</span>
+          <button
+            onClick={() => window.open('https://coldstar.dev/seeker-terms', '_blank', 'noopener,noreferrer')}
+            className="text-xs text-white/50 hover:text-white transition-colors flex items-center gap-1"
+          >
+            Terms of Use
+            <ExternalLink className="w-3 h-3" />
+          </button>
         </div>
       </SheetContent>
     </Sheet>
