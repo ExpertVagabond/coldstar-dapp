@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.coldstar.wallet',
+  appId: 'app.coldstar.app',
   appName: 'Coldstar',
   webDir: 'dist',
   server: {
