@@ -4,7 +4,7 @@ android {
     namespace = "com.coldstar.wallet"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.coldstar.wallet"
+        applicationId "app.coldstar.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
