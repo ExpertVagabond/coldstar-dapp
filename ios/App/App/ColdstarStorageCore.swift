@@ -11,9 +11,11 @@
 // drive. No formatting, no raw USB — file I/O only, which is all iOS permits and
 // all the security model actually requires (ciphertext at rest, decrypt in RAM).
 //
-// Volume format versioning: the marker file carries "coldstar-usb-v<N>". Readers
-// refuse-forward — a v1 app meeting a v2 volume reports "update the app" instead
-// of misparsing the layout. Bump `formatVersion` when the on-disk layout changes.
+// Volume format versioning: the marker is `.coldstar/version.json` (the same file
+// the shipped Android/Seeker app writes) whose `format` field carries
+// "coldstar-usb-v<N>". Readers refuse-forward — a v1 app meeting a v2 volume
+// reports "update the app" instead of misparsing the layout. Bump `formatVersion`
+// when the on-disk layout changes, and update BOTH platforms (PLATFORM-PARITY.md).
 
 import Foundation
 
@@ -72,12 +74,16 @@ public struct VolumeCheckResult {
 
 public struct ColdstarStorageCore {
 
+    // CANONICAL LAYOUT — must match the shipped Android/Seeker format exactly
+    // (src/services/usb-flash.ts WALLET_STRUCTURE). A drive provisioned on either
+    // platform must verify on the other. See PLATFORM-PARITY.md before changing.
     public static let formatVersion = 1
     public static let formatMarkerPrefix = "coldstar-usb-v"
     public static var formatMarker: String { "\(formatMarkerPrefix)\(formatVersion)" }
-    public static let containerFile = "wallet/keypair.enc"
+    public static let containerFile = "wallet/keypair.json"
     public static let pubkeyFile = "wallet/pubkey.txt"
-    public static let markerFile = ".coldstar-format"
+    public static let markerFile = ".coldstar/version.json"
+    public static let directories = ["wallet", "inbox", "outbox", ".coldstar", ".coldstar/backup"]
 
     /// Stale-bookmark recovery policy.
     /// false (default): a stale bookmark that still resolves AND still passes the
@@ -130,19 +136,35 @@ public struct ColdstarStorageCore {
 
     // MARK: - Marker / version handshake
 
-    /// Parse "coldstar-usb-v<N>" from the marker file. Throws notAColdstarVolume
-    /// when the marker is missing or unparseable. Call within scoped access.
+    /// Parse "coldstar-usb-v<N>" from the `format` field of .coldstar/version.json
+    /// (the marker Android/Seeker ships). Throws notAColdstarVolume when the
+    /// marker is missing or unparseable. Call within scoped access.
     private func volumeVersion(at root: URL) throws -> Int {
         let markerURL = root.appendingPathComponent(Self.markerFile)
-        guard let raw = try? String(contentsOf: markerURL, encoding: .utf8) else {
+        guard let raw = try? Data(contentsOf: markerURL),
+              let json = try? JSONSerialization.jsonObject(with: raw) as? [String: Any],
+              let format = json["format"] as? String else {
             throw ColdstarStorageError.notAColdstarVolume
         }
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = format.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix(Self.formatMarkerPrefix),
               let version = Int(trimmed.dropFirst(Self.formatMarkerPrefix.count)) else {
             throw ColdstarStorageError.notAColdstarVolume
         }
         return version
+    }
+
+    /// Serialize the marker exactly as Android's WALLET_STRUCTURE does, so a
+    /// drive provisioned on iOS reads identically on Seeker.
+    private func markerJSON() throws -> Data {
+        let payload: [String: Any] = [
+            "version": Self.formatVersion,
+            "appVersion": "1.0.0",
+            "format": Self.formatMarker,
+            "createdBy": "coldstar-mobile-ios",
+        ]
+        return try JSONSerialization.data(withJSONObject: payload,
+                                          options: [.prettyPrinted, .sortedKeys])
     }
 
     /// Refuse-forward gate: a volume written by a newer app must not be misparsed.
@@ -177,13 +199,17 @@ public struct ColdstarStorageCore {
     // MARK: - Provisioning (replaces Android prepareDrive/writeDirectoryStructure)
     // NOTE: no formatDrive — the drive must arrive pre-formatted FAT32/exFAT.
 
-    /// Write the coldstar-usb-v1 layout + encrypted container to the picked folder.
-    /// `encryptedContainer` and `publicKey` come from the Rust FFI (unchanged).
+    /// Write the canonical coldstar-usb-v1 layout + encrypted container to the
+    /// picked folder — byte-compatible with the Android/Seeker provisioning path.
+    /// `encryptedContainer` and `publicKey` come from the Rust FFI (unchanged);
+    /// `readme` (optional) is supplied by the shared TS layer so the user-facing
+    /// drive text has ONE source of truth (usb-flash.ts WALLET_STRUCTURE).
     /// A fresh folder is fine; an existing Coldstar volume from a NEWER app version
     /// is refused rather than clobbered.
     public func writeContainer(bookmark: Data,
                                encryptedContainer: Data,
-                               publicKey: String) throws -> VolumeWriteResult {
+                               publicKey: String,
+                               readme: String? = nil) throws -> VolumeWriteResult {
         // requireMarker=false: first provisioning writes to a plain folder.
         let (folder, refreshed) = try resolveForUse(bookmark, requireMarker: false)
         try withAccess(folder) { root in
@@ -193,17 +219,20 @@ public struct ColdstarStorageCore {
             if let existing = try? volumeVersion(at: root), existing > Self.formatVersion {
                 throw ColdstarStorageError.volumeNewerThanApp(existing)
             }
-            let wallet = root.appendingPathComponent("wallet", isDirectory: true)
-            let outbox = root.appendingPathComponent("outbox", isDirectory: true)
             do {
-                try fm.createDirectory(at: wallet, withIntermediateDirectories: true)
-                try fm.createDirectory(at: outbox, withIntermediateDirectories: true)
+                for dir in Self.directories {
+                    try fm.createDirectory(at: root.appendingPathComponent(dir, isDirectory: true),
+                                           withIntermediateDirectories: true)
+                }
                 try encryptedContainer.write(to: root.appendingPathComponent(Self.containerFile),
                                              options: .atomic)
                 try publicKey.data(using: .utf8)!
                     .write(to: root.appendingPathComponent(Self.pubkeyFile), options: .atomic)
-                try Self.formatMarker.data(using: .utf8)!
+                try markerJSON()
                     .write(to: root.appendingPathComponent(Self.markerFile), options: .atomic)
+                if let readme, let data = readme.data(using: .utf8) {
+                    try data.write(to: root.appendingPathComponent("README.txt"), options: .atomic)
+                }
             } catch let e as ColdstarStorageError {
                 throw e
             } catch {

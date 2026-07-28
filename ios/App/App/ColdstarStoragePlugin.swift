@@ -119,11 +119,13 @@ public class ColdstarStoragePlugin: CAPPlugin, UIDocumentPickerDelegate {
               let pubkey = call.getString("publicKey") else {
             call.reject("missing encryptedContainer / publicKey"); return
         }
+        let readme = call.getString("readme")
         workQueue.async {
             do {
                 let out = try self.core.writeContainer(bookmark: resolved.bookmark,
                                                        encryptedContainer: container,
-                                                       publicKey: pubkey)
+                                                       publicKey: pubkey,
+                                                       readme: readme)
                 var result: [String: Any] = ["success": true,
                                              "handle": resolved.handle,
                                              "bytesWritten": out.bytesWritten]

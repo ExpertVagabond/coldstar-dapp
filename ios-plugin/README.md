@@ -20,7 +20,7 @@ needs (ciphertext at rest, decrypt in RAM).
 1. **Plaintext never crosses the JS bridge.** Only ciphertext (base64 container) and opaque handles transit Capacitor; decrypt + sign stay in the Rust FFI.
 2. **The bookmark is a credential.** It lives in the Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, optional entitlement-scoped access group for cross-signed-build survival), never in localStorage/Preferences. JS gets a `handle`; `forgetStorageLocation` revokes it.
 3. **Stale ≠ revoked.** A stale bookmark that still resolves AND still passes the Coldstar marker check is re-minted silently and surfaced as `bookmarkRefreshed: true`. Flip `ColdstarStorageCore.strictStaleRecovery = true` for hard re-consent (forces a user re-pick).
-4. **Refuse-forward versioning.** The marker carries `coldstar-usb-v<N>`; a v1 app meeting a v2 volume reports "update the app" (`volumeNewerThanApp`) instead of misparsing. Corrupt markers don't block re-provisioning (no formatDrive exists on iOS).
+4. **Refuse-forward versioning.** The marker is `.coldstar/version.json` (the exact file the shipped Android/Seeker app writes) whose `format` field carries `coldstar-usb-v<N>`; a v1 app meeting a v2 volume reports "update the app" (`volumeNewerThanApp`) instead of misparsing. Corrupt markers don't block re-provisioning (no formatDrive exists on iOS). Cross-platform layout contract: `PLATFORM-PARITY.md` at repo root.
 5. **One pending picker.** A second `pickStorageLocation` rejects the superseded call instead of orphaning its promise; all volume ops run on one serial queue (Capacitor delivers calls on arbitrary threads).
 
 ## Verification run (2026-07-27, this machine)
