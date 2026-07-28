@@ -19,8 +19,12 @@ import android.os.storage.StorageManager;
 import android.os.storage.StorageVolume;
 import android.util.Log;
 
+import android.content.UriPermission;
+
 import androidx.activity.result.ActivityResult;
 import androidx.documentfile.provider.DocumentFile;
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKey;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -67,6 +71,34 @@ public class ColdstarUSBPlugin extends Plugin {
     private PluginCall pendingPermissionCall;
     private Uri safTreeUri; // SAF-selected drive URI
 
+    // The SAF tree URI is the access credential to the wallet drive, so it lives
+    // in Keystore-backed EncryptedSharedPreferences (parity: iOS Keychain — see
+    // PLATFORM-PARITY.md A1). Plaintext values from older builds migrate once.
+    private SharedPreferences securePrefs;
+    private boolean securePrefsEncrypted;
+
+    private void initSecurePrefs() {
+        try {
+            MasterKey masterKey = new MasterKey.Builder(getContext())
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build();
+            securePrefs = EncryptedSharedPreferences.create(
+                    getContext(),
+                    PREFS_NAME + "_secure",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM);
+            securePrefsEncrypted = true;
+        } catch (Exception e) {
+            // Keystore unavailable (rare, broken devices). The drive URI is not the
+            // key itself — the container stays PIN-encrypted — so degrade loudly
+            // rather than brick the app.
+            Log.e(TAG, "EncryptedSharedPreferences unavailable; falling back to plaintext prefs", e);
+            securePrefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            securePrefsEncrypted = false;
+        }
+    }
+
     @Override
     public void load() {
         usbManager = (UsbManager) getContext().getSystemService(Context.USB_SERVICE);
@@ -83,14 +115,60 @@ public class ColdstarUSBPlugin extends Plugin {
             getContext().registerReceiver(usbReceiver, filter);
         }
 
+        initSecurePrefs();
+
+        // One-time migration: pre-A1 builds stored the URI in plaintext prefs.
+        SharedPreferences legacy = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (securePrefsEncrypted) {
+            String legacyUri = legacy.getString(PREF_TREE_URI, null);
+            if (legacyUri != null) {
+                if (!securePrefs.contains(PREF_TREE_URI)) {
+                    securePrefs.edit().putString(PREF_TREE_URI, legacyUri).apply();
+                }
+                legacy.edit().remove(PREF_TREE_URI).apply();
+                Log.i(TAG, "Migrated SAF tree URI from plaintext to encrypted prefs");
+            }
+        }
+
         // Restore persisted SAF tree URI
-        String savedUri = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(PREF_TREE_URI, null);
+        String savedUri = securePrefs.getString(PREF_TREE_URI, null);
         if (savedUri != null) {
             safTreeUri = Uri.parse(savedUri);
             Log.d(TAG, "Restored SAF tree URI: " + safTreeUri);
         }
     }
+
+    /**
+     * Resolve the SAF root, verifying the persisted permission is still held and
+     * the tree is usable. Returns null when access is stale/revoked — callers
+     * must surface the "re-select the drive" message instead of a generic error.
+     * (Parity: iOS stale-bookmark handling — PLATFORM-PARITY.md A3.)
+     */
+    private DocumentFile safRootOrNull() {
+        if (safTreeUri == null) return null;
+
+        boolean stillPersisted = false;
+        for (UriPermission p : getContext().getContentResolver().getPersistedUriPermissions()) {
+            if (p.getUri().equals(safTreeUri) && p.isReadPermission() && p.isWritePermission()) {
+                stillPersisted = true;
+                break;
+            }
+        }
+        if (!stillPersisted) {
+            Log.w(TAG, "SAF permission no longer persisted for " + safTreeUri);
+            return null;
+        }
+
+        DocumentFile root = DocumentFile.fromTreeUri(getContext(), safTreeUri);
+        if (root == null || !root.exists() || !root.canWrite()) {
+            Log.w(TAG, "SAF root missing or not writable: " + safTreeUri);
+            return null;
+        }
+        return root;
+    }
+
+    private static final String STALE_SAF_ERROR =
+            "USB drive access was revoked or the drive changed. Re-select the drive.";
 
     /**
      * List connected USB mass storage devices.
@@ -268,6 +346,14 @@ public class ColdstarUSBPlugin extends Plugin {
             return;
         }
 
+        // A second request must not silently orphan the first call's promise
+        // (parity: iOS pickStorageLocation — PLATFORM-PARITY.md A2).
+        if (pendingPermissionCall != null) {
+            JSObject superseded = new JSObject();
+            superseded.put("granted", false);
+            superseded.put("error", "superseded by a newer permission request");
+            pendingPermissionCall.resolve(superseded);
+        }
         pendingPermissionCall = call;
         usbManager.requestPermission(targetDevice, permissionIntent);
     }
@@ -305,8 +391,16 @@ public class ColdstarUSBPlugin extends Plugin {
         if (mountPoint == null && safTreeUri != null) {
             Log.d(TAG, "Using SAF tree URI for format: " + safTreeUri);
             try {
-                DocumentFile root = DocumentFile.fromTreeUri(getContext(), safTreeUri);
-                if (root != null && root.exists() && root.canWrite()) {
+                DocumentFile root = safRootOrNull();
+                if (root == null) {
+                    JSObject result = new JSObject();
+                    result.put("success", false);
+                    result.put("error", STALE_SAF_ERROR);
+                    result.put("needsManualSelection", true);
+                    call.resolve(result);
+                    return;
+                }
+                if (root.exists() && root.canWrite()) {
                     // Clean existing coldstar directories
                     String[] dirs = {"wallet", "inbox", "outbox", ".coldstar"};
                     for (String dirName : dirs) {
@@ -376,7 +470,8 @@ public class ColdstarUSBPlugin extends Plugin {
         // SAF fallback
         if (safTreeUri != null) {
             try {
-                DocumentFile root = DocumentFile.fromTreeUri(getContext(), safTreeUri);
+                DocumentFile root = safRootOrNull();
+                if (root == null) { call.reject(STALE_SAF_ERROR); return; }
                 DocumentFile dir = findOrCreateSAFDirectory(root, path);
                 JSObject result = new JSObject();
                 result.put("success", dir != null);
@@ -414,6 +509,8 @@ public class ColdstarUSBPlugin extends Plugin {
 
                 JSObject result = new JSObject();
                 result.put("success", true);
+                // Explicit write confirmation (parity: iOS writeToOutbox — A6)
+                result.put("bytesWritten", content.getBytes().length);
                 call.resolve(result);
                 return;
             } catch (IOException e) {
@@ -425,7 +522,8 @@ public class ColdstarUSBPlugin extends Plugin {
         // SAF fallback
         if (safTreeUri != null) {
             try {
-                DocumentFile root = DocumentFile.fromTreeUri(getContext(), safTreeUri);
+                DocumentFile root = safRootOrNull();
+                if (root == null) { call.reject(STALE_SAF_ERROR); return; }
                 // Navigate/create parent directories
                 String parentPath = path.contains("/") ? path.substring(0, path.lastIndexOf('/')) : "";
                 String fileName = path.contains("/") ? path.substring(path.lastIndexOf('/') + 1) : path;
@@ -454,6 +552,7 @@ public class ColdstarUSBPlugin extends Plugin {
 
                 JSObject result = new JSObject();
                 result.put("success", true);
+                result.put("bytesWritten", content.getBytes().length);
                 call.resolve(result);
                 return;
             } catch (Exception e) {
@@ -501,7 +600,8 @@ public class ColdstarUSBPlugin extends Plugin {
         // SAF fallback
         if (safTreeUri != null) {
             try {
-                DocumentFile root = DocumentFile.fromTreeUri(getContext(), safTreeUri);
+                DocumentFile root = safRootOrNull();
+                if (root == null) { call.reject(STALE_SAF_ERROR); return; }
                 DocumentFile file = findSAFFile(root, path);
 
                 if (file == null || !file.exists()) {
@@ -622,9 +722,8 @@ public class ColdstarUSBPlugin extends Plugin {
 
                 safTreeUri = treeUri;
 
-                // Save to SharedPreferences
-                getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .edit()
+                // Save to encrypted prefs (A1) — never the plaintext store
+                securePrefs.edit()
                         .putString(PREF_TREE_URI, treeUri.toString())
                         .apply();
 
@@ -642,6 +741,37 @@ public class ColdstarUSBPlugin extends Plugin {
         result.put("success", false);
         result.put("error", "No drive location selected");
         call.resolve(result);
+    }
+
+    /**
+     * Explicitly revoke the saved drive: release the persistable URI permission
+     * and clear the stored URI (encrypted + legacy plaintext).
+     * Parity: iOS forgetStorageLocation — PLATFORM-PARITY.md A5.
+     */
+    @PluginMethod()
+    public void forgetDriveLocation(PluginCall call) {
+        try {
+            if (safTreeUri != null) {
+                try {
+                    getContext().getContentResolver().releasePersistableUriPermission(safTreeUri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                } catch (SecurityException e) {
+                    // Already released / never persisted — clearing state is what matters
+                    Log.w(TAG, "releasePersistableUriPermission: " + e.getMessage());
+                }
+            }
+            safTreeUri = null;
+            securePrefs.edit().remove(PREF_TREE_URI).apply();
+            getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit().remove(PREF_TREE_URI).apply();
+
+            JSObject result = new JSObject();
+            result.put("success", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to forget drive location: " + e.getMessage());
+        }
     }
 
     // ─── Native FFI bridge ───
