@@ -494,16 +494,16 @@ export function StartupFlash() {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center w-full"
             >
-              {/* Spinning shield */}
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                className="mb-10"
-              >
-                <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center border-4 border-white/20">
+              {/* Pulsing shield — tile stays static (a rotating rounded rect
+                  reads as a tumbling blob, especially at low frame rates) */}
+              <div className="mb-10 w-28 h-28 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center border-4 border-white/20">
+                <motion.div
+                  animate={{ scale: [1, 1.12, 1], opacity: [0.6, 1, 0.6] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                >
                   <Shield className="w-12 h-12 text-white/60" />
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
 
               <h1 className="text-2xl font-semibold text-white mb-2 text-center">
                 Flashing Cold Wallet
