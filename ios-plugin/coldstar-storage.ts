@@ -47,10 +47,17 @@ export interface VolumeRef {
 export interface ColdstarStorageBridge {
   /** Pick / detect where the Coldstar wallet lives. */
   pickStorageLocation(): Promise<StorageLocation>;
-  /** Write the coldstar-usb-v1 layout + encrypted container. */
+  /**
+   * Write the canonical coldstar-usb-v1 layout + encrypted container
+   * (wallet/ inbox/ outbox/ .coldstar/ .coldstar/backup/, marker =
+   * .coldstar/version.json — byte-compatible with the Android/Seeker format).
+   * Pass WALLET_STRUCTURE.files['README.txt'] as `readme` so the drive text
+   * has one source of truth across platforms.
+   */
   writeContainer(opts: VolumeRef & {
     encryptedContainer: string; // base64, from Rust FFI (ciphertext only crosses the bridge)
     publicKey: string;
+    readme?: string;
   }): Promise<VolumeOpResult & { success: boolean; bytesWritten: number }>;
   /** Read the encrypted container back for in-RAM decrypt + sign (native side). */
   readContainer(opts: VolumeRef): Promise<VolumeOpResult & { encryptedContainer: string }>;
