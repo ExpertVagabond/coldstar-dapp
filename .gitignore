@@ -34,3 +34,4 @@ ios-plugin/ColdstarFFI.xcframework/
 ios/App/build2/
 ios/App/Frameworks/
 ios/App/CapApp-SPM/build/
+ios-plugin/demo/coldstar-demo
