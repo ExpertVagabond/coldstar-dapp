@@ -126,11 +126,12 @@ public struct ColdstarStorageCore {
     // MARK: - Scoped access helper
 
     /// Run `body` with security-scoped access to `folder` guaranteed to be released.
+    /// `startAccessing...` returns false for URLs that carry no security scope
+    /// (app-container paths, test fixtures) — that is not a denial; real denials
+    /// surface as file-I/O errors from `body`. Only balance the stop when started.
     private func withAccess<T>(_ folder: URL, _ body: (URL) throws -> T) throws -> T {
-        guard folder.startAccessingSecurityScopedResource() else {
-            throw ColdstarStorageError.accessDenied
-        }
-        defer { folder.stopAccessingSecurityScopedResource() }
+        let started = folder.startAccessingSecurityScopedResource()
+        defer { if started { folder.stopAccessingSecurityScopedResource() } }
         return try body(folder)
     }
 

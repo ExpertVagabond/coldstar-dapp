@@ -40,18 +40,23 @@ This is the drift class this file exists to prevent.
 | Revoke saved drive | **none** | `forgetStorageLocation` | `forgetStorageLocation(opts)` |
 | Wallet gen (Rust FFI) | `generateWallet` → JNI `nativeGenerateWallet` | app target → bridging header → `coldstar_generate_wallet` | via plugin |
 
-## 3. Hardening changes 2026-07-27 — parity status
+## 3. Hardening changes 2026-07-27 — parity status (ALL CLOSED same day)
 
-| Change | iOS | Android/Seeker | Action |
-|---|---|---|---|
-| Access credential in secure storage | ✅ Keychain (`ColdstarKeychain.swift`) | ❌ SAF URI in plaintext SharedPreferences (`ColdstarUSBPlugin.java:626`) | **Backlog A1**: move to `EncryptedSharedPreferences` (Keystore-backed), same one-time migration pattern |
-| Superseded pending call rejected | ✅ `pickStorageLocation` | ❌ `pendingPermissionCall` overwritten silently (`ColdstarUSBPlugin.java:271`) | **Backlog A2**: reject old call before assign |
-| Stale-link recovery | ✅ auto-refresh after marker check, `bookmarkRefreshed` surfaced; `strictStaleRecovery` flag | ➖ SAF persistable permission survives reboots; revocation = `fromTreeUri` fails. No refresh surface | **Backlog A3**: detect lost permission → route to `selectDriveLocation` with explicit user message (don't fail generic) |
-| Volume version handshake (refuse-forward) | ✅ native, parses `version.json.format` | ❌ nothing checks `version.json` before use | **Backlog A4**: JS-side check in `usb-flash.ts` (Android reads via generic `readFile`, so the gate belongs in shared TS; iOS double-checks natively) |
-| Explicit drive revocation | ✅ `forgetStorageLocation` | ❌ no way to clear `saf_tree_uri` / `releasePersistableUriPermission` | **Backlog A5** |
-| Write confirmation (`bytesWritten`) | ✅ | ❌ `writeFile` returns bare success | **Backlog A6** (minor) |
-| Serialized plugin ops | ✅ serial `DispatchQueue` | ➖ Capacitor Android runs plugin calls on its own handler thread; verify single-threaded before assuming | verify, then close |
-| Policy consent-versioning + escalation coalescing | n/a (agent-skill, platform-independent: `coldstar-token/agent-skill/`) | n/a | — |
+| Change | iOS | Android/Seeker |
+|---|---|---|
+| Access credential in secure storage | ✅ Keychain (`ColdstarKeychain.swift`) | ✅ **A1** Keystore-backed `EncryptedSharedPreferences` + one-time plaintext migration (`initSecurePrefs`) |
+| Superseded pending call rejected | ✅ `pickStorageLocation` | ✅ **A2** `requestPermission` resolves prior call `granted:false, superseded` |
+| Stale-link recovery | ✅ auto-refresh after marker check, `bookmarkRefreshed` surfaced; `strictStaleRecovery` flag | ✅ **A3** `safRootOrNull()` verifies persisted URI permission still held; stale → explicit "re-select the drive" error (never generic) |
+| Volume version handshake (refuse-forward) | ✅ native, parses `version.json.format` | ✅ **A4** shared TS `checkVolumeFormat()` in `usb-flash.ts`, gates `verifyUSBWallet` + `readAllWalletFiles` |
+| Explicit drive revocation | ✅ `forgetStorageLocation` | ✅ **A5** `forgetDriveLocation` (releases persistable URI permission, clears encrypted + legacy prefs) |
+| Write confirmation (`bytesWritten`) | ✅ | ✅ **A6** both `writeFile` paths |
+| Serialized plugin ops | ✅ serial `DispatchQueue` | ➖ Capacitor Android runs plugin calls on its own handler thread; verify single-threaded before assuming (only open row) |
+| Policy consent-versioning + escalation coalescing | n/a (agent-skill, platform-independent: `coldstar-token/agent-skill/`) | n/a |
+
+## 3b. Demo evidence (2026-07-27, artifacts in `$VS/projects/coldstar-token/demos/2026-07-27/`)
+
+- **Seeker**: `assembleDebug` BUILD SUCCESSFUL (33M APK, all A-fixes compiled) → installed on Android 15/API-35 emulator → app foreground, hardened `ColdstarUSBPlugin` scan loop live in logcat. `seeker-demo-transcript.txt` + `seeker-emulator-hardened-build.png`.
+- **iOS**: `ios-plugin/demo/main.swift` runs the SHIPPING `ColdstarStorageCore.swift` + real Rust FFI on macOS — 7/7 checks: generate (Argon2id+AES-GCM) → provision canonical layout → verify/version-handshake → read-back → outbox bytesWritten → **Seeker-provisioned volume reads on iOS core** → refuse-forward v2 ("update the app"). `ios-demo-transcript.txt`. App target builds + links clean.
 
 ## 4. Shared invariants (both platforms, audit-facing)
 
@@ -59,9 +64,9 @@ This is the drift class this file exists to prevent.
    (Known exception on both platforms: the PIN transits JS → native FFI at
    generate/sign time. Document to Hashlock; candidate for native PIN entry later.)
 2. The access credential to the drive (bookmark / SAF URI) lives in
-   platform-secure storage, never in WebView-readable storage. (iOS ✅, Android A1.)
+   platform-secure storage, never in WebView-readable storage. (Both ✅.)
 3. Refuse-forward: an app meeting a newer `coldstar-usb-v<N>` than it knows says
-   "update the app" — it never misparses. (iOS ✅, Android A4.)
+   "update the app" — it never misparses. (Both ✅ — iOS native + shared TS.)
 4. One approval per real ask: repeated escalations/notifications coalesce.
 
 ## 5. Process

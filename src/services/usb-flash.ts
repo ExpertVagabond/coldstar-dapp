@@ -92,7 +92,37 @@ export interface FlashResult {
 //     version.json    — Wallet version + metadata
 //     backup/         — Automatic backup copies
 
-const WALLET_STRUCTURE = {
+// ─── Volume format version gate (refuse-forward) ───
+// Shared with iOS (ColdstarStorageCore.formatVersion) — bump BOTH together and
+// update PLATFORM-PARITY.md. An app meeting a NEWER volume must refuse with
+// "update the app", never misparse the layout.
+
+export const VOLUME_FORMAT_PREFIX = 'coldstar-usb-v';
+export const VOLUME_FORMAT_VERSION = 1;
+
+export type VolumeFormatCheck =
+  | { ok: true; version: number }
+  | { ok: false; reason: 'not-coldstar' | 'newer-than-app'; version?: number };
+
+/** Parse .coldstar/version.json content and apply the refuse-forward gate. */
+export function checkVolumeFormat(versionJson: string | null): VolumeFormatCheck {
+  if (!versionJson) return { ok: false, reason: 'not-coldstar' };
+  try {
+    const parsed = JSON.parse(versionJson);
+    const format = String(parsed.format ?? '');
+    if (!format.startsWith(VOLUME_FORMAT_PREFIX)) return { ok: false, reason: 'not-coldstar' };
+    const version = Number.parseInt(format.slice(VOLUME_FORMAT_PREFIX.length), 10);
+    if (!Number.isFinite(version)) return { ok: false, reason: 'not-coldstar' };
+    if (version > VOLUME_FORMAT_VERSION) return { ok: false, reason: 'newer-than-app', version };
+    return { ok: true, version };
+  } catch {
+    return { ok: false, reason: 'not-coldstar' };
+  }
+}
+
+// Exported so the iOS path can pass files (README.txt) through the native
+// writeContainer `readme` param — one source of truth for on-drive text.
+export const WALLET_STRUCTURE = {
   directories: [
     'wallet',
     'inbox',
@@ -126,9 +156,9 @@ Usage:
 For more information: https://github.com/devsyrem/coldstar
 `,
     '.coldstar/version.json': JSON.stringify({
-      version: 1,
+      version: VOLUME_FORMAT_VERSION,
       appVersion: '1.0.0',
-      format: 'coldstar-usb-v1',
+      format: `${VOLUME_FORMAT_PREFIX}${VOLUME_FORMAT_VERSION}`,
       createdBy: 'coldstar-mobile',
     }, null, 2),
   },
@@ -636,6 +666,22 @@ async function verifyUSBWallet(device: USBDevice): Promise<boolean> {
         return false;
       }
 
+      // Refuse-forward version gate (A4): never accept a volume written by a
+      // newer app than this one. Missing marker is tolerated for legacy drives.
+      const versionResult = await (window as any).Capacitor?.Plugins?.ColdstarUSB?.readFile({
+        deviceId: device.deviceId,
+        path: '.coldstar/version.json',
+        encoding: 'utf8',
+      }).catch(() => null);
+      const formatCheck = checkVolumeFormat(versionResult?.content ?? null);
+      if (!formatCheck.ok && formatCheck.reason === 'newer-than-app') {
+        dlog.error('USB', `verify FAILED — volume format v${formatCheck.version} is newer than this app (v${VOLUME_FORMAT_VERSION}); update the app`);
+        return false;
+      }
+      if (!formatCheck.ok) {
+        dlog.warn('USB', 'verify — no readable .coldstar/version.json (legacy drive?), continuing');
+      }
+
       dlog.info('USB', 'verifyUSBWallet — PASSED');
       return true;
     } catch (err) {
@@ -811,6 +857,14 @@ export async function readAllWalletFiles(device: USBDevice): Promise<USBWalletSn
   }
 
   const versionJson = await readFileFromUSB(device, '.coldstar/version.json');
+
+  // Refuse-forward version gate (A4): a drive written by a newer app must not
+  // be read (or backed up into a downgraded copy) by this one.
+  const formatCheck = checkVolumeFormat(versionJson);
+  if (!formatCheck.ok && formatCheck.reason === 'newer-than-app') {
+    dlog.error('Backup', `Volume format v${formatCheck.version} is newer than this app (v${VOLUME_FORMAT_VERSION}); update the app`);
+    return null;
+  }
 
   dlog.info('Backup', `readAllWalletFiles — success (pubkey: ${pubkeyTxt.trim().slice(0, 8)}…)`);
   return { keypairJson, pubkeyTxt: pubkeyTxt.trim(), versionJson };
