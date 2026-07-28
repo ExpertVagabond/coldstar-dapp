@@ -25,3 +25,11 @@ backend/target/
 .env.*
 !.env.example
 node_modules
+
+# iOS generated/build artifacts (Capacitor + Rust FFI binary)
+ios/App/build/
+ios/App/App/public/
+ios/capacitor-cordova-ios-plugins/
+ios-plugin/ColdstarFFI.xcframework/
+ios/App/build2/
+ios/App/Frameworks/
