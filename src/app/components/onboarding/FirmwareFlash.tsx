@@ -110,19 +110,21 @@ export function FirmwareFlash() {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-between p-6 pb-12 pt-16">
       <div className="flex-1 flex flex-col items-center justify-center max-w-md w-full">
-        {/* Header icon */}
+        {/* Header icon — tile never rotates (a spinning rounded rect reads as
+            a tumbling blob); active state pulses instead */}
         <motion.div
           animate={
             flashState === 'complete'
               ? { scale: [1, 1.2, 1] }
               : flashState !== 'idle'
-              ? { rotate: 360 }
+              ? { scale: [1, 1.06, 1], opacity: [0.85, 1, 0.85] }
               : {}
           }
-          transition={{
-            rotate: { duration: 2, repeat: Infinity, ease: 'linear' },
-            scale: { duration: 0.5 },
-          }}
+          transition={
+            flashState === 'complete'
+              ? { scale: { duration: 0.5 } }
+              : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+          }
           className="mb-12"
         >
           {flashState === 'complete' ? (
