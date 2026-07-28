@@ -332,9 +332,20 @@ public class ColdstarUSBPlugin extends Plugin {
         }
 
         if (targetDevice == null) {
+            // Not a raw USB Host device — a StorageManager/mount-scan pseudo-device
+            // (Android auto-mounted the drive, the common modern path). USB-host
+            // permission does not apply to mounted volumes; file access happens via
+            // the mounted filesystem or SAF downstream. Without this, listDevices
+            // finds the drive but the flow loops in "scanning" forever.
+            String mount = findUSBMountPoint();
             JSObject result = new JSObject();
-            result.put("granted", false);
-            result.put("error", "Device not found");
+            if (mount != null || hasSAFAccess()) {
+                result.put("granted", true);
+                result.put("viaMountedVolume", true);
+            } else {
+                result.put("granted", false);
+                result.put("error", "Device not found");
+            }
             call.resolve(result);
             return;
         }
