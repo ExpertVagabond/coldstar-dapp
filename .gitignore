@@ -33,3 +33,4 @@ ios/capacitor-cordova-ios-plugins/
 ios-plugin/ColdstarFFI.xcframework/
 ios/App/build2/
 ios/App/Frameworks/
+ios/App/CapApp-SPM/build/
