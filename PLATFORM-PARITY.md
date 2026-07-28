@@ -53,10 +53,11 @@ This is the drift class this file exists to prevent.
 | Serialized plugin ops | ✅ serial `DispatchQueue` | ➖ Capacitor Android runs plugin calls on its own handler thread; verify single-threaded before assuming (only open row) |
 | Policy consent-versioning + escalation coalescing | n/a (agent-skill, platform-independent: `coldstar-token/agent-skill/`) | n/a |
 
-## 3b. Demo evidence (2026-07-27, artifacts in `$VS/projects/coldstar-token/demos/2026-07-27/`)
+## 3b. Demo evidence (2026-07-27/28, artifacts in `$VS/projects/coldstar-token/demos/2026-07-27/`)
 
-- **Seeker**: `assembleDebug` BUILD SUCCESSFUL (33M APK, all A-fixes compiled) → installed on Android 15/API-35 emulator → app foreground, hardened `ColdstarUSBPlugin` scan loop live in logcat. `seeker-demo-transcript.txt` + `seeker-emulator-hardened-build.png`.
-- **iOS**: `ios-plugin/demo/main.swift` runs the SHIPPING `ColdstarStorageCore.swift` + real Rust FFI on macOS — 7/7 checks: generate (Argon2id+AES-GCM) → provision canonical layout → verify/version-handshake → read-back → outbox bytesWritten → **Seeker-provisioned volume reads on iOS core** → refuse-forward v2 ("update the app"). `ios-demo-transcript.txt`. App target builds + links clean.
+- **Seeker — full flow on video** (`seeker-app-demo.mp4`): launch → auto-detected removable drive → PIN → swipe-to-flash → Rust FFI keygen + Argon2id/AES-256-GCM → "Cold Wallet Created!" → "You're All Set", on an Android 15/API-35 emulator with a virtual public volume. On-disk result verified: canonical `coldstar-usb-v1` marker + encrypted `wallet/keypair.json` + `.coldstar/backup/` copy.
+- **Making the video surfaced a production bug (fixed)**: auto-mounted drives (StorageManager detection path) never passed `requestPermission` → the shipped app loops in "Scanning" forever for them. Fix + `MANAGE_EXTERNAL_STORAGE` manifest declaration on main.
+- **iOS — app running on video** (`ios-app-demo.mp4`): first-ever iOS run, iOS 26.5 simulator, full UI + scanning loop. Storage core additionally proven by the 7/7 macOS harness (`ios-plugin/demo/main.swift`): generate → provision canonical layout → verify/version-handshake → read-back → outbox bytesWritten → **Seeker-provisioned volume reads on iOS core** → refuse-forward v2 ("update the app").
 
 ## 4. Shared invariants (both platforms, audit-facing)
 
