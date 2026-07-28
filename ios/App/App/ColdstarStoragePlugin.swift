@@ -7,8 +7,14 @@
 // (see ColdstarStorage.m / capacitor plugin registration snippet in README).
 //
 // Compiles only inside the Capacitor iOS project (imports Capacitor). The
-// security-critical logic lives in ColdstarStorageCore.swift, which IS
-// standalone-compile-verified against the iOS SDK.
+// security-critical logic lives in ColdstarStorageCore.swift + ColdstarKeychain.swift,
+// which ARE standalone-compile-verified against the iOS SDK.
+//
+// Bookmark custody: the security-scoped bookmark is an access credential to the
+// wallet container, so it never crosses the JS bridge. It lives in the Keychain
+// (entitlement-scoped group, device-only); JS holds an opaque `handle`. Calls
+// that still pass a legacy base64 `bookmark` are migrated into the Keychain
+// once and answered with the new `handle` (iTerm2-style one-time migration).
 
 import Foundation
 import UIKit
@@ -18,13 +24,60 @@ import Capacitor
 public class ColdstarStoragePlugin: CAPPlugin, UIDocumentPickerDelegate {
 
     private let core = ColdstarStorageCore()
+    private let keychain = ColdstarKeychain()
+    /// All storage I/O and Rust FFI calls are serialized here: Capacitor delivers
+    /// plugin calls on arbitrary threads, and neither the drive layout nor the
+    /// FFI is guaranteed re-entrant.
+    private let workQueue = DispatchQueue(label: "dev.coldstar.storage")
+
     private var pendingPick: CAPPluginCall?
+
+    private func account(for handle: String) -> String { "bookmark.\(handle)" }
+
+    // MARK: - Handle resolution (+ one-time legacy migration)
+
+    private struct ResolvedHandle {
+        let handle: String
+        let bookmark: Data
+        let migrated: Bool
+    }
+
+    /// Accepts `handle` (keychain-backed, preferred) or legacy `bookmark` base64
+    /// (pre-keychain builds). Legacy bookmarks are migrated into the keychain
+    /// under a fresh handle so the caller can drop the raw bookmark.
+    private func resolveHandle(_ call: CAPPluginCall) -> ResolvedHandle? {
+        if let handle = call.getString("handle") {
+            guard let data = try? keychain.load(account: account(for: handle)) else {
+                call.reject("unknown storage handle; ask the user to re-select the drive")
+                return nil
+            }
+            return ResolvedHandle(handle: handle, bookmark: data, migrated: false)
+        }
+        if let b64 = call.getString("bookmark"), let data = Data(base64Encoded: b64) {
+            let handle = UUID().uuidString
+            do { try keychain.save(data, account: account(for: handle)) }
+            catch { call.reject("\(error)"); return nil }
+            return ResolvedHandle(handle: handle, bookmark: data, migrated: true)
+        }
+        call.reject("missing handle (or legacy bookmark)")
+        return nil
+    }
+
+    /// Persist a mid-operation bookmark refresh and annotate the JS result.
+    private func absorbRefresh(_ refreshed: Data?, handle: String,
+                               into result: inout [String: Any]) {
+        guard let fresh = refreshed else { return }
+        try? keychain.save(fresh, account: account(for: handle))
+        result["bookmarkRefreshed"] = true
+    }
 
     // MARK: - pickStorageLocation()  (replaces Android listDevices + requestPermission)
 
     @objc func pickStorageLocation(_ call: CAPPluginCall) {
-        self.pendingPick = call
         DispatchQueue.main.async {
+            // A second pick must not silently orphan the first call's promise.
+            self.pendingPick?.reject("superseded by a newer picker request")
+            self.pendingPick = call
             let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
             picker.delegate = self
             picker.allowsMultipleSelection = false
@@ -35,16 +88,20 @@ public class ColdstarStoragePlugin: CAPPlugin, UIDocumentPickerDelegate {
     public func documentPicker(_ controller: UIDocumentPickerViewController,
                                didPickDocumentsAt urls: [URL]) {
         guard let call = pendingPick else { return }
-        defer { pendingPick = nil }
+        pendingPick = nil
         guard let folder = urls.first else { call.reject("no folder selected"); return }
-        do {
-            let bookmark = try core.makeBookmark(for: folder)
-            call.resolve([
-                "bookmark": bookmark.base64EncodedString(),
-                "name": folder.lastPathComponent
-            ])
-        } catch {
-            call.reject("\(error)")
+        workQueue.async {
+            do {
+                let bookmark = try self.core.makeBookmark(for: folder)
+                let handle = UUID().uuidString
+                try self.keychain.save(bookmark, account: self.account(for: handle))
+                call.resolve([
+                    "handle": handle,
+                    "name": folder.lastPathComponent
+                ])
+            } catch {
+                call.reject("\(error)")
+            }
         }
     }
 
@@ -56,78 +113,97 @@ public class ColdstarStoragePlugin: CAPPlugin, UIDocumentPickerDelegate {
     // MARK: - writeContainer()  (replaces prepareDrive/format/writeDirectoryStructure)
 
     @objc func writeContainer(_ call: CAPPluginCall) {
-        guard let b64 = call.getString("bookmark"), let bm = Data(base64Encoded: b64),
-              let containerB64 = call.getString("encryptedContainer"),
+        guard let resolved = resolveHandle(call) else { return }
+        guard let containerB64 = call.getString("encryptedContainer"),
               let container = Data(base64Encoded: containerB64),
               let pubkey = call.getString("publicKey") else {
-            call.reject("missing bookmark / encryptedContainer / publicKey"); return
+            call.reject("missing encryptedContainer / publicKey"); return
         }
-        do {
-            try core.writeContainer(bookmark: bm, encryptedContainer: container, publicKey: pubkey)
-            call.resolve(["success": true])
-        } catch { call.reject("\(error)") }
+        workQueue.async {
+            do {
+                let out = try self.core.writeContainer(bookmark: resolved.bookmark,
+                                                       encryptedContainer: container,
+                                                       publicKey: pubkey)
+                var result: [String: Any] = ["success": true,
+                                             "handle": resolved.handle,
+                                             "bytesWritten": out.bytesWritten]
+                if resolved.migrated { result["migrated"] = true }
+                self.absorbRefresh(out.refreshedBookmark, handle: resolved.handle, into: &result)
+                call.resolve(result)
+            } catch { call.reject("\(error)") }
+        }
     }
 
     // MARK: - readContainer()  (for in-RAM decrypt + sign)
 
     @objc func readContainer(_ call: CAPPluginCall) {
-        guard let b64 = call.getString("bookmark"), let bm = Data(base64Encoded: b64) else {
-            call.reject("missing bookmark"); return
+        guard let resolved = resolveHandle(call) else { return }
+        workQueue.async {
+            do {
+                let out = try self.core.readContainer(bookmark: resolved.bookmark)
+                var result: [String: Any] = [
+                    "encryptedContainer": out.container.base64EncodedString(),
+                    "handle": resolved.handle
+                ]
+                if resolved.migrated { result["migrated"] = true }
+                self.absorbRefresh(out.refreshedBookmark, handle: resolved.handle, into: &result)
+                call.resolve(result)
+            } catch { call.reject("\(error)") }
         }
-        do {
-            let data = try core.readContainer(bookmark: bm)
-            call.resolve(["encryptedContainer": data.base64EncodedString()])
-        } catch { call.reject("\(error)") }
     }
 
     // MARK: - writeToOutbox()
 
     @objc func writeToOutbox(_ call: CAPPluginCall) {
-        guard let b64 = call.getString("bookmark"), let bm = Data(base64Encoded: b64),
-              let name = call.getString("name"),
+        guard let resolved = resolveHandle(call) else { return }
+        guard let name = call.getString("name"),
               let txB64 = call.getString("signedTx"), let tx = Data(base64Encoded: txB64) else {
-            call.reject("missing args"); return
+            call.reject("missing name / signedTx"); return
         }
-        do { try core.writeToOutbox(bookmark: bm, name: name, signedTx: tx)
-             call.resolve(["success": true]) }
-        catch { call.reject("\(error)") }
+        workQueue.async {
+            do {
+                let out = try self.core.writeToOutbox(bookmark: resolved.bookmark,
+                                                      name: name, signedTx: tx)
+                var result: [String: Any] = ["success": true,
+                                             "handle": resolved.handle,
+                                             "name": name,
+                                             "bytesWritten": out.bytesWritten]
+                if resolved.migrated { result["migrated"] = true }
+                self.absorbRefresh(out.refreshedBookmark, handle: resolved.handle, into: &result)
+                call.resolve(result)
+            } catch { call.reject("\(error)") }
+        }
     }
 
     // MARK: - verifyVolume()
 
     @objc func verifyVolume(_ call: CAPPluginCall) {
-        guard let b64 = call.getString("bookmark"), let bm = Data(base64Encoded: b64) else {
-            call.reject("missing bookmark"); return
+        guard let resolved = resolveHandle(call) else { return }
+        workQueue.async {
+            do {
+                let out = try self.core.verifyVolume(bookmark: resolved.bookmark)
+                var result: [String: Any] = [
+                    "isColdstarVolume": out.isColdstarVolume,
+                    "supported": out.supported,
+                    "handle": resolved.handle
+                ]
+                if let v = out.formatVersion { result["formatVersion"] = v }
+                if resolved.migrated { result["migrated"] = true }
+                self.absorbRefresh(out.refreshedBookmark, handle: resolved.handle, into: &result)
+                call.resolve(result)
+            } catch { call.reject("\(error)") }
         }
-        do { call.resolve(["isColdstarVolume": try core.verifyVolume(bookmark: bm)]) }
-        catch { call.reject("\(error)") }
     }
 
-    // MARK: - Rust core bridge (proves ColdstarFFI.xcframework links + runs on iOS)
-    // Calls the same C-ABI the Android app uses (JSON in / JSON out). This is how
-    // the ported iOS app reaches coldstar_generate_wallet / coldstar_sign / etc.
+    // MARK: - forgetStorageLocation()  (explicit revocation of a saved drive)
 
-    @objc func coreGenerateWallet(_ call: CAPPluginCall) {
-        let reqJson = call.getString("request") ?? "{}"
-        let out = reqJson.withCString { cstr -> String in
-            guard let ptr = coldstar_generate_wallet(cstr) else {
-                return #"{"success":false,"error":"null from core"}"#
-            }
-            defer { coldstar_free_string(ptr) }
-            return String(cString: ptr)
+    @objc func forgetStorageLocation(_ call: CAPPluginCall) {
+        guard let handle = call.getString("handle") else {
+            call.reject("missing handle"); return
         }
-        call.resolve(["result": out])
-    }
-
-    @objc func coreSign(_ call: CAPPluginCall) {
-        let reqJson = call.getString("request") ?? "{}"
-        let out = reqJson.withCString { cstr -> String in
-            guard let ptr = coldstar_sign(cstr) else {
-                return #"{"success":false,"error":"null from core"}"#
-            }
-            defer { coldstar_free_string(ptr) }
-            return String(cString: ptr)
-        }
-        call.resolve(["result": out])
+        do {
+            try keychain.delete(account: account(for: handle))
+            call.resolve(["success": true])
+        } catch { call.reject("\(error)") }
     }
 }

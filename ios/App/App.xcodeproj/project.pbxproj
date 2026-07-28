@@ -15,12 +15,14 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		5C0A3583EBE3FEC8439B27B9 /* ColdstarKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */; };
 		9034B708643D9EDD6D86192F /* ColdstarFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4799DBBB4CFBB4B756E96A26 /* ColdstarFFI.xcframework */; };
 		A06AF3FF3275D74F67A48E8D /* ColdstarStoragePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 855E59BB8F78444C21914C4F /* ColdstarStoragePlugin.swift */; };
 		F300880543DA54C8E6A6DB71 /* ColdstarStorageCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928A19FC975BD7B8C9C8CB2C /* ColdstarStorageCore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColdstarKeychain.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		4799DBBB4CFBB4B756E96A26 /* ColdstarFFI.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; name = ColdstarFFI.xcframework; path = Frameworks/ColdstarFFI.xcframework; sourceTree = SOURCE_ROOT; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
@@ -80,6 +82,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				928A19FC975BD7B8C9C8CB2C /* ColdstarStorageCore.swift */,
 				855E59BB8F78444C21914C4F /* ColdstarStoragePlugin.swift */,
+				25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -176,6 +179,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				F300880543DA54C8E6A6DB71 /* ColdstarStorageCore.swift in Sources */,
 				A06AF3FF3275D74F67A48E8D /* ColdstarStoragePlugin.swift in Sources */,
+				5C0A3583EBE3FEC8439B27B9 /* ColdstarKeychain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
