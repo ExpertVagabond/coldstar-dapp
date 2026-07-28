@@ -1,0 +1,4 @@
+module ColdstarFFI {
+    header "coldstar_ffi.h"
+    export *
+}
