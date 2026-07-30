@@ -49,9 +49,10 @@ Registration note (iOS): the plugin conforms to `CAPBridgedPlugin`
 (identifier/jsName/pluginMethods) — required for Capacitor to auto-register an
 app-target plugin; without it every JS call is `undefined`.
 
-Known iOS gap: no BiometricAuth plugin counterpart yet (Android has
-BiometricAuthPlugin.java) — the unlock screen's biometric path needs an iOS
-implementation (LocalAuthentication) before device testing. **Backlog B1.**
+**B1 CLOSED (2026-07-29):** `BiometricAuthPlugin.swift` — Face ID / Touch ID via
+LocalAuthentication, same JS surface (`BiometricAuth.isAvailable/authenticate`)
+as Android's BiometricAuthPlugin.java; NSFaceIDUsageDescription added. On the
+simulator, enroll Face ID via Features → Face ID before testing the unlock path.
 
 ## 3. Hardening changes 2026-07-27 — parity status (ALL CLOSED same day)
 
