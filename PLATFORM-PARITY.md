@@ -40,6 +40,7 @@ branches per platform (`isIOS()`), the iOS bridge lives at
 | Persist drive access | SAF tree URI in Keystore-backed EncryptedSharedPreferences | **Keychain** (device-only; entitlement group ready); JS gets opaque `handle` | `StorageLocation.handle` |
 | Provision layout | `formatDrive`/`createDirectory`/`writeFile` (driven by JS, step-by-step) | `writeContainer` (one atomic native call incl. `.coldstar/backup/` copies) | `flashColdWallet()` (branches per platform) |
 | Read container | `readFile('wallet/keypair.json')` (generic) | `readContainer` (marker-gated, version-gated) | `readFileFromUSB()` (iOS maps wallet paths onto the bridge) |
+| Write container files (re-key, snapshot restore) | `writeFile(path, …)` (generic) | `writeContainer` one-shot; follow-up pubkey/version/backup writes are native no-ops | `writeFileToUSB()` (iOS maps wallet paths onto the bridge) |
 | Signed tx out | `writeFile('outbox/…')` | `writeToOutbox` (returns `bytesWritten`) | `writeToOutbox(opts)` |
 | Verify volume | none in plugin — JS checks files | `verifyVolume` (returns `formatVersion`, `supported`) | `verifyVolume(opts)` |
 | Revoke saved drive | `forgetDriveLocation` | `forgetStorageLocation` | `forgetStorageLocation(opts)` |
