@@ -29,16 +29,29 @@ This is the drift class this file exists to prevent.
 
 ## 2. Plugin API surface
 
+Since 2026-07-29 the app flow is FULLY WIRED on both platforms: `usb-flash.ts`
+branches per platform (`isIOS()`), the iOS bridge lives at
+`src/services/coldstar-storage.ts`, and StartupFlash shows the iOS
+"Choose USB Drive…" picker path (iOS cannot auto-detect drives).
+
 | Capability | Android `ColdstarUSB` (ColdstarUSBPlugin.java) | iOS `ColdstarStorage` (ColdstarStoragePlugin.swift) | Shared TS |
 |---|---|---|---|
-| Find/choose drive | `listDevices` + `requestPermission` (USB Host API), `selectDriveLocation` (SAF fallback) | `pickStorageLocation` (UIDocumentPicker — only path iOS allows) | `getColdstarStorage().pickStorageLocation()` |
-| Persist drive access | SAF tree URI in **plaintext SharedPreferences** (`saf_tree_uri`) | **Keychain** (device-only; entitlement group ready); JS gets opaque `handle` | `StorageLocation.handle` |
-| Provision layout | `formatDrive`/`createDirectory`/`writeFile` (driven by JS, step-by-step) | `writeContainer` (one atomic native call) | `writeContainer(opts)` |
-| Read container | `readFile('wallet/keypair.json')` (generic) | `readContainer` (marker-gated, version-gated) | `readContainer(opts)` |
+| Find/choose drive | `listDevices` + `requestPermission` (USB Host API), `selectDriveLocation` (SAF fallback) | `pickStorageLocation` (UIDocumentPicker — only path iOS allows); handle cached in localStorage for auto-reconnect | `detectUSBDevices()` / `selectIOSDrive()` |
+| Persist drive access | SAF tree URI in Keystore-backed EncryptedSharedPreferences | **Keychain** (device-only; entitlement group ready); JS gets opaque `handle` | `StorageLocation.handle` |
+| Provision layout | `formatDrive`/`createDirectory`/`writeFile` (driven by JS, step-by-step) | `writeContainer` (one atomic native call incl. `.coldstar/backup/` copies) | `flashColdWallet()` (branches per platform) |
+| Read container | `readFile('wallet/keypair.json')` (generic) | `readContainer` (marker-gated, version-gated) | `readFileFromUSB()` (iOS maps wallet paths onto the bridge) |
 | Signed tx out | `writeFile('outbox/…')` | `writeToOutbox` (returns `bytesWritten`) | `writeToOutbox(opts)` |
 | Verify volume | none in plugin — JS checks files | `verifyVolume` (returns `formatVersion`, `supported`) | `verifyVolume(opts)` |
-| Revoke saved drive | **none** | `forgetStorageLocation` | `forgetStorageLocation(opts)` |
-| Wallet gen (Rust FFI) | `generateWallet` → JNI `nativeGenerateWallet` | app target → bridging header → `coldstar_generate_wallet` | via plugin |
+| Revoke saved drive | `forgetDriveLocation` | `forgetStorageLocation` | `forgetStorageLocation(opts)` |
+| Wallet gen (Rust FFI) | `generateWallet` → JNI `nativeGenerateWallet` | `generateWallet` → bridging header → `coldstar_generate_wallet` (same response shape) | `generateKeypairOnDevice()` |
+
+Registration note (iOS): the plugin conforms to `CAPBridgedPlugin`
+(identifier/jsName/pluginMethods) — required for Capacitor to auto-register an
+app-target plugin; without it every JS call is `undefined`.
+
+Known iOS gap: no BiometricAuth plugin counterpart yet (Android has
+BiometricAuthPlugin.java) — the unlock screen's biometric path needs an iOS
+implementation (LocalAuthentication) before device testing. **Backlog B1.**
 
 ## 3. Hardening changes 2026-07-27 — parity status (ALL CLOSED same day)
 

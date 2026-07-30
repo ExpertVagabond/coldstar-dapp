@@ -168,14 +168,86 @@ For more information: https://github.com/devsyrem/coldstar
 
 type ProgressCallback = (progress: FlashProgress) => void;
 
+// ─── iOS drive handling (ColdstarStorage plugin) ───
+// iOS cannot enumerate USB devices — the user picks the drive folder once via
+// the Files dialog (pickStorageLocation); the security-scoped bookmark lives in
+// the Keychain and JS keeps only the opaque handle. See PLATFORM-PARITY.md.
+
+const IOS_DRIVE_KEY = 'coldstar_ios_drive';
+
+export function isIOS(): boolean {
+  return Capacitor.getPlatform() === 'ios';
+}
+
+function savedIOSDrive(): { handle: string; name: string } | null {
+  try {
+    const raw = localStorage.getItem(IOS_DRIVE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function iosPseudoDevice(handle: string, name: string): USBDevice {
+  return {
+    deviceId: 9001, vendorId: 0, productId: 0,
+    deviceName: name, manufacturerName: 'USB', productName: name,
+    serialNumber: '', devicePath: handle, storageSize: 0, formattedSize: '',
+  };
+}
+
+/** The handle for an iOS pseudo-device (stored in devicePath). */
+function iosHandle(device: USBDevice): string {
+  return device.devicePath;
+}
+
+/**
+ * iOS only: open the Files picker so the user selects the drive folder.
+ * Persists the keychain-backed handle; returns the pseudo-device or null on cancel.
+ */
+export async function selectIOSDrive(): Promise<USBDevice | null> {
+  try {
+    const { getColdstarStorage } = await import('./coldstar-storage');
+    const loc = await getColdstarStorage().pickStorageLocation();
+    localStorage.setItem(IOS_DRIVE_KEY, JSON.stringify({ handle: loc.handle, name: loc.name }));
+    dlog.info('USB', `iOS drive selected: ${loc.name}`);
+    return iosPseudoDevice(loc.handle, loc.name);
+  } catch (err) {
+    dlog.warn('USB', 'iOS drive selection cancelled/failed', { error: String(err) });
+    return null;
+  }
+}
+
+async function detectUSBIOS(): Promise<USBDevice[]> {
+  const saved = savedIOSDrive();
+  if (!saved) return [];
+  try {
+    const { getColdstarStorage } = await import('./coldstar-storage');
+    const check = await getColdstarStorage().verifyVolume({ handle: saved.handle });
+    if (check.isColdstarVolume && !check.supported) {
+      dlog.error('USB', `iOS drive format v${check.formatVersion} newer than app; update the app`);
+      return [];
+    }
+    // Plain folder (not yet provisioned) is fine — flashing provisions it
+    return [iosPseudoDevice(check.handle ?? saved.handle, saved.name)];
+  } catch (err) {
+    // Handle no longer resolves (drive forgotten / keychain wiped) — re-pick
+    dlog.warn('USB', 'iOS saved drive unusable; clearing', { error: String(err) });
+    localStorage.removeItem(IOS_DRIVE_KEY);
+    return [];
+  }
+}
+
 /**
  * Detect connected USB mass storage devices.
  * On Android, uses the USB Host API via our Capacitor plugin.
+ * On iOS, returns the previously picked drive folder (if any).
  * On web, uses the WebUSB API as a fallback for development.
  */
 export async function detectUSBDevices(): Promise<USBDevice[]> {
-  const platform = Capacitor.isNativePlatform() ? 'native' : 'web';
+  const platform = Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web';
   dlog.info('USB', `detectUSBDevices — platform: ${platform}`);
+  if (isIOS()) {
+    return detectUSBIOS();
+  }
   if (Capacitor.isNativePlatform()) {
     return detectUSBNative();
   }
@@ -246,6 +318,10 @@ async function detectUSBWeb(): Promise<USBDevice[]> {
  */
 export async function requestUSBPermission(device: USBDevice): Promise<boolean> {
   dlog.info('USB', `requestUSBPermission — deviceId: ${device.deviceId}, name: ${device.deviceName}`);
+  if (isIOS()) {
+    // The Files-picker grant IS the permission (security-scoped bookmark)
+    return true;
+  }
   if (Capacitor.isNativePlatform()) {
     try {
       const result = await (window as any).Capacitor?.Plugins?.ColdstarUSB?.requestPermission({
@@ -295,6 +371,11 @@ export async function flashColdWallet(
   };
 
   dlog.info('Flash', `=== FLASH START === device: ${device.deviceName} (id=${device.deviceId}), label: ${walletLabel}`);
+
+  if (isIOS()) {
+    return flashColdWalletIOS(device, pin, report);
+  }
+
   try {
     // Step 1: Prepare disk
     report('preparing', 5, 'Preparing USB drive...');
@@ -453,6 +534,74 @@ async function formatUSBDrive(device: USBDevice): Promise<boolean> {
   }
   await delay(1000);
   return true;
+}
+
+/**
+ * iOS flash path: the native writeContainer provisions the whole canonical
+ * layout (dirs + marker + container + pubkey + backups + README) in ONE call,
+ * so the step-by-step Android choreography collapses to generate → write → verify.
+ */
+async function flashColdWalletIOS(
+  device: USBDevice,
+  pin: string,
+  report: (step: FlashStep, progress: number, message: string, error?: string) => void,
+): Promise<FlashResult> {
+  try {
+    const { getColdstarStorage } = await import('./coldstar-storage');
+    const storage = getColdstarStorage();
+    const handle = iosHandle(device);
+
+    report('preparing', 10, 'Preparing drive...');
+
+    // Generate + encrypt in secure Rust memory (same FFI as Android)
+    report('generating-keypair', 30, 'Generating Ed25519 keypair...');
+    const gen = await storage.generateWallet({ pin });
+    if (!gen?.publicKey || !gen?.encryptedContainer) {
+      report('error', 0, 'Failed to generate keypair');
+      return { success: false, error: 'Keypair generation failed' };
+    }
+
+    report('encrypting', 55, 'Encrypting wallet with Argon2id + AES-256-GCM...');
+    const walletData = await encryptAndWriteWallet(device, gen.publicKey, gen.encryptedContainer, '');
+    if (!walletData) {
+      report('error', 0, 'Failed to encrypt wallet');
+      return { success: false, error: 'Wallet encryption failed' };
+    }
+    const keypairJson = JSON.stringify({
+      version: walletData.version,
+      salt: walletData.kdfSalt,
+      nonce: walletData.nonce,
+      ciphertext: walletData.ciphertext,
+      public_key: walletData.publicKey,
+    }, null, 2);
+
+    // One-shot provisioning of the canonical coldstar-usb-v1 layout
+    report('writing-wallet', 75, 'Writing encrypted wallet to drive...');
+    await storage.writeContainer({
+      handle,
+      encryptedContainer: strToBase64(keypairJson),
+      publicKey: walletData.publicKey,
+      readme: WALLET_STRUCTURE.files['README.txt'],
+    });
+
+    // Read-back verification (mirrors verifyUSBWallet)
+    report('verifying', 90, 'Verifying installation integrity...');
+    const back = await storage.readContainer({ handle });
+    const parsed = JSON.parse(base64ToStr(back.encryptedContainer));
+    const volume = await storage.verifyVolume({ handle });
+    if (parsed?.public_key !== walletData.publicKey || !volume.isColdstarVolume || !volume.supported) {
+      report('error', 0, 'Verification failed — wallet may be corrupted');
+      return { success: false, error: 'Verification failed' };
+    }
+
+    dlog.info('Flash', '=== FLASH COMPLETE (iOS) ===');
+    report('complete', 100, 'Cold wallet created successfully!');
+    return { success: true, publicKey: walletData.publicKey, walletId: walletData.walletId };
+  } catch (err) {
+    dlog.error('Flash', 'iOS flash EXCEPTION', { error: String(err) });
+    report('error', 0, 'Flash failed', String(err));
+    return { success: false, error: String(err) };
+  }
 }
 
 async function writeDirectoryStructure(device: USBDevice): Promise<boolean> {
@@ -699,6 +848,11 @@ async function verifyUSBWallet(device: USBDevice): Promise<boolean> {
  */
 export async function ejectUSB(device: USBDevice): Promise<boolean> {
   dlog.info('USB', `ejectUSB — deviceId: ${device.deviceId}`);
+  if (isIOS()) {
+    // Writes are atomic + scoped access is released per-operation; iOS has no
+    // unmount API for user-picked folders. Safe to just remove the drive.
+    return true;
+  }
   if (Capacitor.isNativePlatform()) {
     try {
       const result = await (window as any).Capacitor?.Plugins?.ColdstarUSB?.ejectDrive({
@@ -722,6 +876,21 @@ export async function checkExistingWallet(device: USBDevice): Promise<{
   publicKey?: string;
 }> {
   dlog.info('USB', `checkExistingWallet — deviceId: ${device.deviceId}`);
+  if (isIOS()) {
+    try {
+      const { getColdstarStorage } = await import('./coldstar-storage');
+      const back = await getColdstarStorage().readContainer({ handle: iosHandle(device) });
+      const parsed = JSON.parse(base64ToStr(back.encryptedContainer));
+      if (parsed?.public_key) {
+        dlog.info('USB', `Existing wallet found (iOS), pubkey: ${String(parsed.public_key).slice(0, 8)}…`);
+        return { hasWallet: true, publicKey: parsed.public_key };
+      }
+      return { hasWallet: false };
+    } catch {
+      // Not a Coldstar volume yet / no container — fresh drive
+      return { hasWallet: false };
+    }
+  }
   if (Capacitor.isNativePlatform()) {
     try {
       const result = await (window as any).Capacitor?.Plugins?.ColdstarUSB?.readFile({
@@ -758,6 +927,20 @@ function arrayToBase64(arr: number[]): string {
   return btoa(String.fromCharCode(...new Uint8Array(arr)));
 }
 
+/** UTF-8-safe base64 for strings crossing the iOS bridge (ciphertext JSON). */
+function strToBase64(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+
+function base64ToStr(b64: string): string {
+  const bin = atob(b64);
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -769,6 +952,32 @@ function delay(ms: number): Promise<void> {
  * Returns file content as string, or null if not found.
  */
 export async function readFileFromUSB(device: USBDevice, path: string): Promise<string | null> {
+  if (isIOS()) {
+    // The iOS bridge is a wallet-shaped API, not a generic file API — map the
+    // known wallet paths onto it (covers unlock, backup, and verify flows).
+    try {
+      const { getColdstarStorage } = await import('./coldstar-storage');
+      const storage = getColdstarStorage();
+      const handle = iosHandle(device);
+      if (path === 'wallet/keypair.json' || path === '.coldstar/backup/keypair.json') {
+        const back = await storage.readContainer({ handle });
+        return base64ToStr(back.encryptedContainer);
+      }
+      if (path === 'wallet/pubkey.txt' || path === '.coldstar/backup/pubkey.txt') {
+        const back = await storage.readContainer({ handle });
+        return JSON.parse(base64ToStr(back.encryptedContainer))?.public_key ?? null;
+      }
+      if (path === '.coldstar/version.json') {
+        const check = await storage.verifyVolume({ handle });
+        if (!check.isColdstarVolume || check.formatVersion == null) return null;
+        return JSON.stringify({ version: check.formatVersion, format: `${VOLUME_FORMAT_PREFIX}${check.formatVersion}` });
+      }
+      dlog.warn('USB', `readFileFromUSB (iOS): unmapped path ${path}`);
+      return null;
+    } catch {
+      return null;
+    }
+  }
   if (Capacitor.isNativePlatform()) {
     try {
       const result = await (window as any).Capacitor?.Plugins?.ColdstarUSB?.readFile({

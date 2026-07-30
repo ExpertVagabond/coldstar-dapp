@@ -13,6 +13,8 @@ import {
   checkExistingWallet,
   flashColdWallet,
   ejectUSB,
+  isIOS,
+  selectIOSDrive,
 } from '../../../services/usb-flash';
 import type { USBDevice, FlashProgress, FlashStep } from '../../../services/usb-flash';
 import { dlog } from '../../../services/debug-log';
@@ -110,13 +112,32 @@ export function StartupFlash() {
   }, [phase]);
 
   useEffect(() => {
-    // Start polling immediately
+    // Start polling immediately. On iOS there is nothing to poll — the drive is
+    // user-picked — so run one check (returning users auto-advance) and stop.
     scanForDevices();
-    scanRef.current = setInterval(scanForDevices, 2000);
+    if (!isIOS()) {
+      scanRef.current = setInterval(scanForDevices, 2000);
+    }
     return () => {
       if (scanRef.current) clearInterval(scanRef.current);
     };
   }, [scanForDevices]);
+
+  // ─── iOS: user picks the drive folder via the Files dialog ───
+  const handleSelectIOSDrive = useCallback(async () => {
+    const selected = await selectIOSDrive();
+    if (!selected) return; // cancelled
+    dlog.info('StartupFlash', `iOS drive picked: ${selected.deviceName}`);
+    setDevice(selected);
+    setPhase('detected');
+    const existing = await checkExistingWallet(selected);
+    if (existing.hasWallet) {
+      setHasExisting(true);
+      setExistingPubkey(existing.publicKey || null);
+    }
+    sessionStorage.setItem('coldstar_usb_device', JSON.stringify(selected));
+    setPhase('pin-entry');
+  }, []);
 
   // Stop polling once we leave scanning phase
   useEffect(() => {
@@ -268,31 +289,46 @@ export function StartupFlash() {
                 Coldstar
               </h1>
               <p className="text-base text-white/50 leading-relaxed text-center mb-8">
-                Waiting for USB drive...
+                {isIOS() ? 'Connect your USB drive' : 'Waiting for USB drive...'}
               </p>
 
-              {/* Scanning indicator */}
-              <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-3">
-                <motion.div
-                  className="w-2 h-2 rounded-full bg-blue-400"
-                  animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 1.2, repeat: Infinity }}
-                />
-                <span className="text-sm text-white/60">Scanning for USB devices</span>
-              </div>
+              {isIOS() ? (
+                /* iOS: no auto-detect — the user picks the drive folder once */
+                <button
+                  onClick={handleSelectIOSDrive}
+                  className="flex items-center gap-3 bg-white text-black font-semibold rounded-2xl px-6 py-4 active:scale-[0.98] transition-transform"
+                >
+                  <HardDrive className="w-5 h-5" />
+                  <span className="text-sm">Choose USB Drive…</span>
+                </button>
+              ) : (
+                /* Android: scanning indicator */
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-3">
+                  <motion.div
+                    className="w-2 h-2 rounded-full bg-blue-400"
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                  />
+                  <span className="text-sm text-white/60">Scanning for USB devices</span>
+                </div>
+              )}
 
               {/* Tips */}
               <div className="mt-8 space-y-2 w-full">
                 <div className="flex items-center gap-3 px-4 py-2">
                   <WifiOff className="w-4 h-4 text-white/30 flex-shrink-0" />
                   <span className="text-xs text-white/40">
-                    Connect a USB drive via OTG to create your cold wallet
+                    {isIOS()
+                      ? 'Plug the drive into the USB-C port, then pick it in the Files dialog'
+                      : 'Connect a USB drive via OTG to create your cold wallet'}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 px-4 py-2">
                   <Shield className="w-4 h-4 text-white/30 flex-shrink-0" />
                   <span className="text-xs text-white/40">
-                    Use a dedicated drive — all data will be erased
+                    {isIOS()
+                      ? 'Drive must be pre-formatted (FAT32/exFAT) — iOS cannot format it'
+                      : 'Use a dedicated drive — all data will be erased'}
                   </span>
                 </div>
               </div>
