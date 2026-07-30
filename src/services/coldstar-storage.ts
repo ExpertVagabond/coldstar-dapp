@@ -72,6 +72,12 @@ export interface ColdstarStorageBridge {
     : Promise<VolumeOpResult & { isColdstarVolume: boolean; formatVersion?: number; supported: boolean }>;
   /** Explicitly revoke a saved drive (deletes the keychain-backed bookmark). */
   forgetStorageLocation(opts: { handle: string }): Promise<{ success: boolean }>;
+  /**
+   * Generate a wallet in secure Rust memory (Argon2id + AES-256-GCM via the
+   * bundled FFI). Same response shape as Android's ColdstarUSB.generateWallet.
+   */
+  generateWallet(opts: { pin: string; label?: string })
+    : Promise<{ publicKey: string; encryptedContainer: string }>;
 }
 
 const iosStorage = registerPlugin<ColdstarStorageBridge>('ColdstarStorage');

@@ -229,6 +229,12 @@ public struct ColdstarStorageCore {
                                              options: .atomic)
                 try publicKey.data(using: .utf8)!
                     .write(to: root.appendingPathComponent(Self.pubkeyFile), options: .atomic)
+                // Backup copies — Android writes these from JS (writeWalletToUSB);
+                // parity requires them on iOS too
+                try encryptedContainer.write(to: root.appendingPathComponent(".coldstar/backup/keypair.json"),
+                                             options: .atomic)
+                try publicKey.data(using: .utf8)!
+                    .write(to: root.appendingPathComponent(".coldstar/backup/pubkey.txt"), options: .atomic)
                 try markerJSON()
                     .write(to: root.appendingPathComponent(Self.markerFile), options: .atomic)
                 if let readme, let data = readme.data(using: .utf8) {

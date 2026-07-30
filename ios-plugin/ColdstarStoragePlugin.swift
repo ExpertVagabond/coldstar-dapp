@@ -21,7 +21,21 @@ import UIKit
 import Capacitor
 
 @objc(ColdstarStoragePlugin)
-public class ColdstarStoragePlugin: CAPPlugin, UIDocumentPickerDelegate {
+public class ColdstarStoragePlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate {
+
+    // CAPBridgedPlugin conformance — REQUIRED for Capacitor to auto-register
+    // an app-local plugin and expose these methods to JS as `ColdstarStorage`.
+    public let identifier = "ColdstarStoragePlugin"
+    public let jsName = "ColdstarStorage"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "pickStorageLocation", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "writeContainer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readContainer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "writeToOutbox", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "verifyVolume", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "forgetStorageLocation", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "generateWallet", returnType: CAPPluginReturnPromise),
+    ]
 
     private let core = ColdstarStorageCore()
     private let keychain = ColdstarKeychain()
@@ -194,6 +208,47 @@ public class ColdstarStoragePlugin: CAPPlugin, UIDocumentPickerDelegate {
                 self.absorbRefresh(out.refreshedBookmark, handle: resolved.handle, into: &result)
                 call.resolve(result)
             } catch { call.reject("\(error)") }
+        }
+    }
+
+    // MARK: - generateWallet()  (Rust FFI — parity with Android's JNI path)
+
+    /// Calls coldstar_generate_wallet from the bridging header (Argon2id KDF +
+    /// AES-256-GCM in secure Rust memory; plaintext key never reaches Swift/JS).
+    /// Response shape matches Android's ColdstarUSBPlugin.generateWallet:
+    /// { publicKey, encryptedContainer: <EncryptedWallet JSON string> }.
+    @objc func generateWallet(_ call: CAPPluginCall) {
+        guard let pin = call.getString("pin"), !pin.isEmpty else {
+            call.reject("PIN is required"); return
+        }
+        let label = call.getString("label")
+        workQueue.async {
+            var payload: [String: Any] = ["pin": pin]
+            if let label { payload["label"] = label }
+            guard let inputData = try? JSONSerialization.data(withJSONObject: payload),
+                  let input = String(data: inputData, encoding: .utf8) else {
+                call.reject("could not encode FFI request"); return
+            }
+            guard let raw = coldstar_generate_wallet(input) else {
+                call.reject("wallet generation failed (FFI returned null)"); return
+            }
+            defer { coldstar_free_string(raw) }
+            let response = String(cString: raw)
+            guard let json = (try? JSONSerialization.jsonObject(with: Data(response.utf8))) as? [String: Any],
+                  json["success"] as? Bool == true,
+                  let data = json["data"] as? [String: Any],
+                  let publicKey = data["public_key"] as? String,
+                  let wallet = data["wallet"],
+                  let walletData = try? JSONSerialization.data(withJSONObject: wallet),
+                  let walletJSON = String(data: walletData, encoding: .utf8) else {
+                let message = ((try? JSONSerialization.jsonObject(with: Data(response.utf8))) as? [String: Any])?["error"] as? String
+                call.reject("wallet generation failed: \(message ?? "unexpected FFI response")")
+                return
+            }
+            call.resolve([
+                "publicKey": publicKey,
+                "encryptedContainer": walletJSON
+            ])
         }
     }
 
