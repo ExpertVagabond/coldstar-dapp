@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		28ADDB46067ED06A5971359A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BD8C13AFF6FAA8B4DD9127BD /* Foundation.framework */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		43E478F9F638DD949FB70750 /* AppViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ECAC8BCC92E93759BE6A8B8 /* AppViewController.swift */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -16,13 +18,25 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		5C0A3583EBE3FEC8439B27B9 /* ColdstarKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */; };
+		85C9E44BA4BA4B81D5C4AD6B /* ColdstarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEFFC3656FC22E2FD69F3ED5 /* ColdstarUITests.swift */; };
 		9034B708643D9EDD6D86192F /* ColdstarFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4799DBBB4CFBB4B756E96A26 /* ColdstarFFI.xcframework */; };
 		A06AF3FF3275D74F67A48E8D /* ColdstarStoragePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 855E59BB8F78444C21914C4F /* ColdstarStoragePlugin.swift */; };
 		C9B634EDC3E21205221F72A1 /* BiometricAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E561C3E12C15F5FC388FF7D /* BiometricAuthPlugin.swift */; };
 		F300880543DA54C8E6A6DB71 /* ColdstarStorageCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928A19FC975BD7B8C9C8CB2C /* ColdstarStorageCore.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		C89A8CA62C5726DB0168822F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 504EC3031FED79650016851F;
+			remoteInfo = App;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		12DDCF1D759B6016139268FC /* ColdstarUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ColdstarUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColdstarKeychain.swift; sourceTree = "<group>"; };
 		2E561C3E12C15F5FC388FF7D /* BiometricAuthPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BiometricAuthPlugin.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -35,12 +49,23 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		5ECAC8BCC92E93759BE6A8B8 /* AppViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppViewController.swift; sourceTree = "<group>"; };
 		855E59BB8F78444C21914C4F /* ColdstarStoragePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColdstarStoragePlugin.swift; sourceTree = "<group>"; };
 		928A19FC975BD7B8C9C8CB2C /* ColdstarStorageCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColdstarStorageCore.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		BD8C13AFF6FAA8B4DD9127BD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		DEFFC3656FC22E2FD69F3ED5 /* ColdstarUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColdstarUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		4FA07EE677FFC547856DB007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				28ADDB46067ED06A5971359A /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3011FED79650016851F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -60,6 +85,7 @@
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
 				77E91A06D33C53DEA027A092 /* Frameworks */,
+				72B8449A003848D4CB6A2CE5 /* ColdstarUITests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -67,6 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				12DDCF1D759B6016139268FC /* ColdstarUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -86,16 +113,35 @@
 				855E59BB8F78444C21914C4F /* ColdstarStoragePlugin.swift */,
 				25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */,
 				2E561C3E12C15F5FC388FF7D /* BiometricAuthPlugin.swift */,
+				5ECAC8BCC92E93759BE6A8B8 /* AppViewController.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		72B8449A003848D4CB6A2CE5 /* ColdstarUITests */ = {
+			isa = PBXGroup;
+			children = (
+				DEFFC3656FC22E2FD69F3ED5 /* ColdstarUITests.swift */,
+			);
+			name = ColdstarUITests;
+			path = ColdstarUITests;
 			sourceTree = "<group>";
 		};
 		77E91A06D33C53DEA027A092 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				4799DBBB4CFBB4B756E96A26 /* ColdstarFFI.xcframework */,
+				A6A414C08C6ADCEB3E1468FA /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A6A414C08C6ADCEB3E1468FA /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				BD8C13AFF6FAA8B4DD9127BD /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -120,6 +166,24 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		5475FEECD49578D9AE50CBA1 /* ColdstarUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B92DBAAF046875238823EB81 /* Build configuration list for PBXNativeTarget "ColdstarUITests" */;
+			buildPhases = (
+				A13C8F91A1EA6AB2533BD196 /* Sources */,
+				4FA07EE677FFC547856DB007 /* Frameworks */,
+				A434C167F636D2F0C705DC63 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				35EEADDCDC5B8CFA7187EDC1 /* PBXTargetDependency */,
+			);
+			name = ColdstarUITests;
+			productName = ColdstarUITests;
+			productReference = 12DDCF1D759B6016139268FC /* ColdstarUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -154,6 +218,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				5475FEECD49578D9AE50CBA1 /* ColdstarUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -172,6 +237,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A434C167F636D2F0C705DC63 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -184,10 +256,28 @@
 				A06AF3FF3275D74F67A48E8D /* ColdstarStoragePlugin.swift in Sources */,
 				5C0A3583EBE3FEC8439B27B9 /* ColdstarKeychain.swift in Sources */,
 				C9B634EDC3E21205221F72A1 /* BiometricAuthPlugin.swift in Sources */,
+				43E478F9F638DD949FB70750 /* AppViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A13C8F91A1EA6AB2533BD196 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				85C9E44BA4BA4B81D5C4AD6B /* ColdstarUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		35EEADDCDC5B8CFA7187EDC1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = App;
+			target = 504EC3031FED79650016851F /* App */;
+			targetProxy = C89A8CA62C5726DB0168822F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -209,6 +299,22 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		2A18938BFDFD5FDCD36FA429 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.coldstar.app.uitests;
+				PRODUCT_NAME = ColdstarUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = App;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		504EC3141FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
@@ -372,6 +478,21 @@
 			};
 			name = Release;
 		};
+		62832C7BBF82E35AFA5EBA55 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.coldstar.app.uitests;
+				PRODUCT_NAME = ColdstarUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = App;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -389,6 +510,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B92DBAAF046875238823EB81 /* Build configuration list for PBXNativeTarget "ColdstarUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A18938BFDFD5FDCD36FA429 /* Release */,
+				62832C7BBF82E35AFA5EBA55 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
