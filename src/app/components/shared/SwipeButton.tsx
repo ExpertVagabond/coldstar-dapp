@@ -98,7 +98,9 @@ export function SwipeButton({
         dragMomentum={false}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        style={{ x }}
+        // touchAction none: without it iOS WebKit can claim horizontal touch
+        // drags for scrolling before pointermove reaches framer-motion
+        style={{ x, touchAction: 'none' }}
         className={`absolute left-1 top-1 w-12 h-12 rounded-xl ${baseClasses} shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing ${
           disabled ? 'pointer-events-none' : ''
         }`}
