@@ -998,6 +998,35 @@ export async function readFileFromUSB(device: USBDevice, path: string): Promise<
  * Returns true on success.
  */
 export async function writeFileToUSB(device: USBDevice, path: string, content: string): Promise<boolean> {
+  if (isIOS()) {
+    // Map single-file writes onto the wallet-shaped iOS bridge. Callers write
+    // keypair.json first, then pubkey.txt (and snapshots also version.json) —
+    // the native writeContainer covers all three in one shot, so the
+    // follow-up writes are no-ops.
+    try {
+      if (path === 'wallet/keypair.json') {
+        const publicKey = JSON.parse(content)?.public_key;
+        if (!publicKey) return false;
+        const { getColdstarStorage } = await import('./coldstar-storage');
+        await getColdstarStorage().writeContainer({
+          handle: iosHandle(device),
+          encryptedContainer: strToBase64(content),
+          publicKey,
+          readme: WALLET_STRUCTURE.files['README.txt'],
+        });
+        return true;
+      }
+      if (path === 'wallet/pubkey.txt' || path === '.coldstar/version.json'
+          || path === '.coldstar/backup/keypair.json' || path === '.coldstar/backup/pubkey.txt') {
+        return true; // written natively as part of writeContainer
+      }
+      dlog.warn('USB', `writeFileToUSB (iOS): unmapped path ${path}`);
+      return false;
+    } catch (err) {
+      dlog.error('USB', 'writeFileToUSB (iOS) EXCEPTION', { error: String(err) });
+      return false;
+    }
+  }
   if (Capacitor.isNativePlatform()) {
     try {
       await (window as any).Capacitor?.Plugins?.ColdstarUSB?.writeFile({

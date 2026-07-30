@@ -18,6 +18,7 @@ export function SwipeButton({
 }: SwipeButtonProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [a11yPercent, setA11yPercent] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const maxDrag = useRef(0);
@@ -41,21 +42,47 @@ export function SwipeButton({
     hapticLight();
   };
 
+  const complete = () => {
+    x.set(maxDrag.current);
+    setA11yPercent(100);
+    setIsComplete(true);
+    hapticSuccess();
+    setTimeout(() => {
+      onComplete();
+    }, 300);
+  };
+
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false);
-    
+
     const currentX = x.get();
-    
+
     if (currentX >= maxDrag.current * 0.8) {
-      x.set(maxDrag.current);
-      setIsComplete(true);
-      hapticSuccess();
-      setTimeout(() => {
-        onComplete();
-      }, 300);
+      complete();
     } else {
       x.set(0);
       hapticLight();
+    }
+  };
+
+  // Keyboard / assistive-tech operability (WCAG 2.1.1): the swipe must have a
+  // non-gesture equivalent. Arrow-key slider semantics keep the action
+  // deliberate — five presses to confirm, never a single accidental tap.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled || isComplete) return;
+    const step = maxDrag.current * 0.2;
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = Math.min(x.get() + step, maxDrag.current);
+      x.set(next);
+      setA11yPercent(Math.round((next / maxDrag.current) * 100));
+      hapticLight();
+      if (next >= maxDrag.current * 0.8) complete();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = Math.max(x.get() - step, 0);
+      x.set(next);
+      setA11yPercent(Math.round((next / maxDrag.current) * 100));
     }
   };
 
@@ -98,6 +125,13 @@ export function SwipeButton({
         dragMomentum={false}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        role="slider"
+        aria-label={text}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={a11yPercent}
+        tabIndex={disabled || isComplete ? -1 : 0}
+        onKeyDown={handleKeyDown}
         // touchAction none: without it iOS WebKit can claim horizontal touch
         // drags for scrolling before pointermove reaches framer-motion
         style={{ x, touchAction: 'none' }}
