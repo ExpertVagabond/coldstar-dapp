@@ -1,9 +1,19 @@
 # Known issues
 
-- **Main screen double-render after onboarding** (2026-07-31, emulator/Android 15):
-  after "You're All Set" → Enter Coldstar, Home briefly shows duplicated
-  overlapping cards (Total Portfolio ×2, Assets/NFTs pills ×2, action rows ×2)
-  plus red "Disconnected" hardware badges. Likely AnimatePresence double-mount /
-  route double-render on first entry. Frame: demo footage 2026-07-31 (venture-ops
-  content check frames). Found via demo-gate review; repo issues are disabled, so
-  tracked here.
+## RESOLVED / RECLASSIFIED
+
+- **Main-screen "double-render" after onboarding — NOT an app bug (2026-07-31).**
+  The overlapping duplicated panels seen on the Android emulator are WebView
+  surface/tile compositing corruption in the emulator itself. Evidence: with the
+  screen visibly corrupted, CDP `Runtime.evaluate` DOM queries show exactly ONE
+  of every element (`Total Portfolio` ×1, `Disconnected` ×1, one #root, 165
+  nodes) under BOTH `-gpu auto` (gfxstream) and `-gpu swiftshader_indirect` —
+  two different corruption patterns, same clean DOM. Onboarding screens render
+  fine in the same sessions. Expectation: unaffected on real hardware (real GPU
+  drivers); confirm during physical-device testing (queue: physical-device-tests).
+
+- **Biometric-unavailable lockout — FIXED (2026-07-31).** PinUnlock had no
+  fallback: any device without usable biometrics was permanently locked out of
+  the app UI. Now falls back to wallet-PIN unlock verified by decrypting from
+  the USB drive (same trust boundary as signing). Verified on emulator:
+  biometrics unavailable → PIN input shown → correct PIN + drive → unlocked.
