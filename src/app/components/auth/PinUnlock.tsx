@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Fingerprint } from 'lucide-react';
+import { Fingerprint, KeyRound } from 'lucide-react';
 import { ShootingStars } from '../shared/ShootingStars';
 import logoDisconnected from '../../../imports/Not_Connected.png';
 import { useStartupPage } from '../../../utils/useStartupPage';
 import { isBiometricAvailable, authenticateWithBiometric } from '../../../services/biometric';
+import { verifyUSBWalletPin } from '../../../services/wallet';
+import { detectUSBDevices } from '../../../services/usb-flash';
 import { hapticSuccess, hapticError } from '../../../utils/mobile';
 
 interface PinUnlockProps {
@@ -15,7 +17,33 @@ export function PinUnlock({ onUnlock }: PinUnlockProps) {
   const [error, setError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
+  // PIN fallback — without it, a device with no usable biometrics is locked
+  // out of the app entirely. Requires the USB drive (same trust as signing).
+  const [showPinFallback, setShowPinFallback] = useState(false);
+  const [pin, setPin] = useState('');
+  const [verifyingPin, setVerifyingPin] = useState(false);
   useStartupPage();
+
+  const handlePinUnlock = async () => {
+    if (pin.length < 6 || verifyingPin) return;
+    setVerifyingPin(true);
+    setError('');
+    try {
+      const devices = await detectUSBDevices();
+      if (devices.length === 0) {
+        setError('Insert your Coldstar USB drive to unlock with PIN');
+        return;
+      }
+      await verifyUSBWalletPin(devices[0], pin);
+      hapticSuccess();
+      onUnlock();
+    } catch {
+      hapticError();
+      setError('Wrong PIN, or the drive could not be read');
+    } finally {
+      setVerifyingPin(false);
+    }
+  };
 
   // Check biometric availability and auto-prompt on mount
   useEffect(() => {
@@ -24,6 +52,8 @@ export function PinUnlock({ onUnlock }: PinUnlockProps) {
       setBiometricAvailable(available);
       if (available) {
         triggerBiometric();
+      } else {
+        setShowPinFallback(true);
       }
     };
     init();
@@ -91,13 +121,13 @@ export function PinUnlock({ onUnlock }: PinUnlockProps) {
         {/* Description */}
         <p className="text-base text-white/60 mb-8 leading-relaxed text-center">
           {biometricAvailable === false
-            ? 'Fingerprint not available on this device'
+            ? 'Biometrics unavailable — unlock with your wallet PIN (USB drive required)'
             : 'Use your fingerprint to unlock the wallet'
           }
         </p>
 
         {/* Tap to retry hint */}
-        {!isAuthenticating && biometricAvailable !== false && (
+        {!isAuthenticating && biometricAvailable !== false && !showPinFallback && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -106,6 +136,44 @@ export function PinUnlock({ onUnlock }: PinUnlockProps) {
           >
             Tap the fingerprint icon to authenticate
           </motion.p>
+        )}
+
+        {/* PIN fallback (USB drive required — same trust boundary as signing) */}
+        {showPinFallback ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full mt-2"
+          >
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pin}
+              onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handlePinUnlock(); }}
+              placeholder="Wallet PIN"
+              maxLength={12}
+              className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 text-white text-center text-xl font-mono tracking-[0.5em] px-4 focus:outline-none focus:border-white/30"
+            />
+            <button
+              onClick={handlePinUnlock}
+              disabled={pin.length < 6 || verifyingPin}
+              className="w-full h-12 mt-3 rounded-2xl bg-white text-black font-semibold disabled:opacity-40 active:scale-[0.98] transition-transform"
+            >
+              {verifyingPin ? 'Verifying…' : 'Unlock'}
+            </button>
+          </motion.div>
+        ) : (
+          !isAuthenticating && (
+            <button
+              onClick={() => setShowPinFallback(true)}
+              className="flex items-center gap-2 text-sm text-white/40 mt-4 active:text-white/60"
+            >
+              <KeyRound className="w-4 h-4" />
+              Use wallet PIN instead
+            </button>
+          )
         )}
 
         {/* Error Message */}
