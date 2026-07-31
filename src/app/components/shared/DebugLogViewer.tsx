@@ -81,11 +81,6 @@ export function DebugLogViewer({ children }: { children: React.ReactNode }) {
 
   const filtered = filter === 'all' ? entries : entries.filter(e => e.level === filter);
 
-  const formatTime = (ts: number) => {
-    const d = new Date(ts);
-    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
-  };
-
   return (
     <>
       {/* Trigger area — wraps children, invisible tap target */}

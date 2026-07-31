@@ -91,7 +91,8 @@ async function deriveKey(pin: string, salt: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt,
+      // TS 5.9 models Uint8Array<ArrayBufferLike>, WebCrypto wants ArrayBuffer-backed
+      salt: salt as BufferSource,
       iterations: 600000,
       hash: 'SHA-256',
     },
@@ -111,7 +112,7 @@ async function encryptSecretKey(secretKey: Uint8Array, pin: string): Promise<Enc
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    secretKey
+    secretKey as BufferSource
   );
 
   return {
@@ -136,7 +137,7 @@ async function deriveKeyArgon2id(pin: string, salt: Uint8Array): Promise<CryptoK
 
   return crypto.subtle.importKey(
     'raw',
-    hash,
+    hash as BufferSource,
     { name: 'AES-GCM' },
     false,
     ['decrypt']
@@ -154,9 +155,9 @@ async function decryptSecretKey(wallet: EncryptedWallet, pin: string): Promise<U
     : await deriveKey(pin, salt);
 
   const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
-    ciphertext
+    ciphertext as BufferSource
   );
 
   return new Uint8Array(plaintext);

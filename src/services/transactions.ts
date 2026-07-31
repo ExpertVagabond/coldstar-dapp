@@ -14,7 +14,7 @@ import {
   getAssociatedTokenAddress,
   createTransferInstruction,
   createAssociatedTokenAccountInstruction,
-  TOKEN_PROGRAM_ID,
+
 } from '@solana/spl-token';
 import { getConnection, getLatestBlockhash } from './solana';
 

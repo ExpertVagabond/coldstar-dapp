@@ -20,8 +20,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     
-    /* Path mapping */
-    "baseUrl": ".",
+    /* Path mapping (baseUrl removed — deprecated in TS 7; paths resolve
+       relative to this tsconfig) */
     "paths": {
       "@/*": ["./src/*"]
     }

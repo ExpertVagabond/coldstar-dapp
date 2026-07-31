@@ -59,7 +59,7 @@ export function Send() {
   const [isSigning, setIsSigning] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const [showPrivateInfo, setShowPrivateInfo] = useState(false);
-  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [, setIsPinVerified] = useState(false);
   const [pinDigits, setPinDigits] = useState<string[]>([]);
   const [pinError, setPinError] = useState('');
   const [biometricError, setBiometricError] = useState('');
