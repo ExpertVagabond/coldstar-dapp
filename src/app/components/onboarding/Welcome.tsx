@@ -1,4 +1,4 @@
-import { Shield } from 'lucide-react';
+
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import logoImg from '../../../imports/Connected-1.png';

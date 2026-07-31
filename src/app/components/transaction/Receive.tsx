@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Copy, Share2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
+
 import QRCode from 'qrcode';
 import { useWallet } from '../../../contexts/WalletContext';
 

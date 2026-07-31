@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { CheckCircle2, Shield, AlertTriangle, Key, HardDrive, Lock, FileCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';

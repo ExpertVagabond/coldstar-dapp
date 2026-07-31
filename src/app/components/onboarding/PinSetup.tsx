@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Fingerprint, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
 import { ShootingStars } from '../shared/ShootingStars';
 import { useStartupPage } from '../../../utils/useStartupPage';
-import { createWallet, registerUSBWallet, storeWalletPassphrase } from '../../../services/wallet';
+import { createWallet, registerUSBWallet } from '../../../services/wallet';
 import { isBiometricAvailable, authenticateWithBiometric } from '../../../services/biometric';
 import { hapticSuccess, hapticError, hapticLight } from '../../../utils/mobile';
 

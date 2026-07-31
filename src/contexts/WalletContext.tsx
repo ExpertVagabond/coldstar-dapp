@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { getWalletMeta, hasWallet, getPublicKey, switchWallet, removeWallet, type WalletMeta } from '../services/wallet';
 import { getWalletBalance, type WalletBalance, type TokenBalance } from '../services/solana';
-import { type SolscanTokenMeta } from '../services/solscan';
+
 import { getTokenPrices, get24hChanges, formatUSD, type TokenPrice } from '../services/prices';
 import { getTokenLogos } from '../services/jupiter';
 import { classifyTokensFull, type SafetyLevel, type RiskItem } from '../services/rugcheck';

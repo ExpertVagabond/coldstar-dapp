@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Send, ArrowDownToLine, RefreshCw, TrendingUp, TrendingDown, Loader2, Shield, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
-import { motion } from 'motion/react';
+
 import { useWallet } from '../../../contexts/WalletContext';
 import { getPriceHistory, getTokenMarketData, formatCompact, type MarketData } from '../../../services/prices';
 
@@ -29,7 +29,7 @@ export function AssetDetail() {
     
     setChartLoading(true);
     getPriceHistory(asset.coingeckoId, TIMEFRAME_DAYS[timeframe])
-      .then(data => setChartData(data))
+      .then(data => setChartData(data.map(d => [d.timestamp, d.price] as [number, number])))
       .catch(() => setChartData([]))
       .finally(() => setChartLoading(false));
   }, [asset?.coingeckoId, timeframe]);

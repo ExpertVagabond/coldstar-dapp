@@ -16,7 +16,7 @@ export function SwipeButton({
   disabled = false,
   variant = 'primary'
 }: SwipeButtonProps) {
-  const [isDragging, setIsDragging] = useState(false);
+  const [, setIsDragging] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [a11yPercent, setA11yPercent] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ export function SwipeButton({
     }, 300);
   };
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, _info: PanInfo) => {
     setIsDragging(false);
 
     const currentX = x.get();

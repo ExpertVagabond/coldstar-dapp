@@ -6,7 +6,7 @@ import { SwipeButton } from '../shared/SwipeButton';
 import { PinVerification } from '../shared/PinVerification';
 import { useWallet } from '../../../contexts/WalletContext';
 import { getKeypair } from '../../../services/wallet';
-import { getTokenSafetyReport, type TokenSafetyReport, type SafetyLevel } from '../../../services/rugcheck';
+import { getTokenSafetyReport, type TokenSafetyReport } from '../../../services/rugcheck';
 import {
   getSwapQuote,
   SWAP_TOKENS,
@@ -343,7 +343,7 @@ export function Swap() {
         <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <TokenIcon logoURI={fromAsset.logoURI} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
+              <TokenIcon logoURI={fromAsset.logoURI ?? undefined} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
               <div>
                 <div className="text-lg font-semibold text-white truncate max-w-[180px]">{fromAmount}</div>
                 <div className="text-sm text-white/60">{fromAsset.symbol}</div>
@@ -359,7 +359,7 @@ export function Swap() {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <TokenIcon logoURI={toAsset.logoURI} logo={toAsset.logo} symbol={toAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
+              <TokenIcon logoURI={toAsset.logoURI ?? undefined} logo={toAsset.logo} symbol={toAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
               <div className="min-w-0">
               <div className="text-lg font-semibold text-white truncate max-w-[180px]">{toAmount}</div>
                 <div className="text-sm text-white/60">{toAsset.symbol}</div>
@@ -422,7 +422,7 @@ export function Swap() {
           <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <TokenIcon logoURI={fromAsset.logoURI} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
+                <TokenIcon logoURI={fromAsset.logoURI ?? undefined} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
                 <div>
                   <div className="text-lg font-semibold text-white truncate max-w-[180px]">{fromAmount}</div>
                   <div className="text-sm text-white/60">{fromAsset.symbol}</div>
@@ -438,7 +438,7 @@ export function Swap() {
 
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3 min-w-0">
-                <TokenIcon logoURI={toAsset.logoURI} logo={toAsset.logo} symbol={toAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
+                <TokenIcon logoURI={toAsset.logoURI ?? undefined} logo={toAsset.logo} symbol={toAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
                 <div className="min-w-0">
                   <div className="text-lg font-semibold text-white truncate max-w-[180px]">{toAmount}</div>
                   <div className="text-sm text-white/60">{toAsset.symbol}</div>
@@ -531,7 +531,7 @@ export function Swap() {
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <TokenIcon logoURI={fromAsset.logoURI} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
+                  <TokenIcon logoURI={fromAsset.logoURI ?? undefined} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
                   <div>
                     <div className="text-lg font-semibold text-white truncate max-w-[180px]">{fromAmount}</div>
                     <div className="text-sm text-white/60">{fromAsset.symbol}</div>
@@ -547,7 +547,7 @@ export function Swap() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <TokenIcon logoURI={toAsset.logoURI} logo={toAsset.logo} symbol={toAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
+                  <TokenIcon logoURI={toAsset.logoURI ?? undefined} logo={toAsset.logo} symbol={toAsset.symbol} size="w-10 h-10" textSize="text-2xl" />
                   <div>
                     <div className="text-lg font-semibold text-white truncate max-w-[180px]">{toAmount}</div>
                     <div className="text-sm text-white/60">{toAsset.symbol}</div>
@@ -743,7 +743,7 @@ export function Swap() {
                 onClick={() => setShowFromPicker(true)}
                 className="flex items-center gap-2 flex-1 hover:bg-white/5 rounded-lg p-1 -m-1 transition-colors"
               >
-                <TokenIcon logoURI={fromAsset.logoURI} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-7 h-7" textSize="text-xl" />
+                <TokenIcon logoURI={fromAsset.logoURI ?? undefined} logo={fromAsset.logo} symbol={fromAsset.symbol} size="w-7 h-7" textSize="text-xl" />
                 <span className="font-semibold text-white">{fromAsset.symbol}</span>
                 <ChevronDown className="w-4 h-4 text-white/40" />
               </button>
@@ -793,7 +793,7 @@ export function Swap() {
                 onClick={() => setShowToPicker(true)}
                 className="flex items-center gap-2 flex-1 hover:bg-white/5 rounded-lg p-1 -m-1 transition-colors"
               >
-                <TokenIcon logoURI={toAsset.logoURI} logo={toAsset.logo} symbol={toAsset.symbol} size="w-7 h-7" textSize="text-xl" />
+                <TokenIcon logoURI={toAsset.logoURI ?? undefined} logo={toAsset.logo} symbol={toAsset.symbol} size="w-7 h-7" textSize="text-xl" />
                 <span className="font-semibold text-white">{toAsset.symbol}</span>
                 <ChevronDown className="w-4 h-4 text-white/40" />
               </button>

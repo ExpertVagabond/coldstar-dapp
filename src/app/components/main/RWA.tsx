@@ -1,4 +1,4 @@
-import { Landmark, TrendingUp, TrendingDown, Shield } from 'lucide-react';
+import { Landmark, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 import { BottomNav } from '../shared/BottomNav';
 import { TokenIcon } from '../shared/TokenIcon';

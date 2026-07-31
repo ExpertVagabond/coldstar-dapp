@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, ArrowDownToLine, RefreshCw, ChevronRight, Eye, EyeOff, Layers3, ChevronDown, Info, Image as ImageIcon, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Send, ArrowDownToLine, RefreshCw, Eye, EyeOff, Layers3, ChevronDown, Image as ImageIcon, Star } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue } from 'motion/react';
 import { HardwareStatus } from '../shared/HardwareStatus';
 import { BottomNav } from '../shared/BottomNav';
 import { ShootingStars } from '../shared/ShootingStars';
@@ -9,14 +9,14 @@ import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import logoConnected from '../../../imports/Connected.png';
 import logoDisconnected from '../../../imports/Not_Connected.png';
-import { useWallet, type AssetItem } from '../../../contexts/WalletContext';
+import { useWallet } from '../../../contexts/WalletContext';
 import { getNFTsForWallet, type NFTAsset } from '../../../services/solana';
 import { WalletDrawer } from '../shared/WalletDrawer';
 import { TokenIcon } from '../shared/TokenIcon';
 import { isOnline, onConnectivityChange } from '../../../services/transaction-cache';
 
 export function Home() {
-  const { assets, totalBalance, solBalance, isRefreshing, refreshBalances, publicKey, error: walletError, hardwareConnected, connectedDevice, connectedWalletPubkey, disconnectHardware } = useWallet();
+  const { assets, totalBalance, solBalance, isRefreshing, refreshBalances, publicKey, hardwareConnected, connectedDevice, connectedWalletPubkey, disconnectHardware } = useWallet();
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [expandedAssetId, setExpandedAssetId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'assets' | 'nfts'>('assets');

@@ -1,6 +1,6 @@
 import { Home, History, Layers, Compass, Coins } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
-import { motion } from 'motion/react';
+
 
 const tabs = [
   { id: 'home', label: 'Home', icon: Home, path: '/app' },

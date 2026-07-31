@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { hapticLight, hapticError, hapticSuccess } from '../../../utils/mobile';
+import { motion } from 'motion/react';
+import { hapticError, hapticSuccess } from '../../../utils/mobile';
 import { NumericKeypad } from './NumericKeypad';
 
 interface PinInputProps {
