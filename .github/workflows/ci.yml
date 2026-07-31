@@ -47,6 +47,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # The Rust FFI framework is a build artifact (gitignored) — build the
+      # simulator slice from source and assemble the xcframework Xcode links.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+      - run: cargo build -p coldstar-ffi --release --target aarch64-apple-ios-sim
+        working-directory: backend
+      - run: >
+          xcodebuild -create-xcframework
+          -library backend/target/aarch64-apple-ios-sim/release/libcoldstar_ffi.a
+          -headers ios-plugin/ffi-headers
+          -output ios/App/Frameworks/ColdstarFFI.xcframework
       - run: npm ci
       - run: npm run build
       - run: npx cap copy ios
