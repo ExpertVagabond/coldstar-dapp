@@ -12,7 +12,7 @@ import {
 import type { USBDevice, USBWalletSnapshot, BackupProgress, BackupStep } from '../../../services/usb-flash';
 import { verifyPinFromKeypairJson } from '../../../services/wallet';
 import { isBiometricAvailable, authenticateWithBiometric } from '../../../services/biometric';
-import { getWalletPassphrase } from '../../../services/wallet';
+
 import { hapticSuccess, hapticError } from '../../../utils/mobile';
 
 type Stage =
@@ -95,14 +95,10 @@ export function BackupWallet() {
     try {
       const available = await isBiometricAvailable();
       if (!available) {
-        // Fallback: if biometric not available, check passphrase exists
-        const passphrase = getWalletPassphrase();
-        if (passphrase) {
-          hapticSuccess();
-          setStage('plug-source');
-        } else {
-          setBioError('No wallet passphrase found');
-        }
+        // No biometrics — proceed. The flow's own PIN stage (verified against
+        // the wallet snapshot) is the real gate before anything is written;
+        // the old passphrase check bricked backup on non-biometric devices.
+        setStage('plug-source');
         setIsAuthenticating(false);
         return;
       }
