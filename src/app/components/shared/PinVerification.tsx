@@ -39,7 +39,7 @@ export function PinVerification({
       const available = await isBiometricAvailable();
       if (!available) {
         // Fallback: if biometric not available, pass passphrase directly
-        const passphrase = getWalletPassphrase();
+        const passphrase = await getWalletPassphrase();
         if (passphrase) {
           hapticSuccess();
           onVerified(passphrase);
@@ -53,7 +53,7 @@ export function PinVerification({
       const success = await authenticateWithBiometric();
       if (success) {
         hapticSuccess();
-        const passphrase = getWalletPassphrase();
+        const passphrase = await getWalletPassphrase();
         if (passphrase) {
           onVerified(passphrase);
         } else {
