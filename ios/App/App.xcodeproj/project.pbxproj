@@ -23,6 +23,7 @@
 		A06AF3FF3275D74F67A48E8D /* ColdstarStoragePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 855E59BB8F78444C21914C4F /* ColdstarStoragePlugin.swift */; };
 		C9B634EDC3E21205221F72A1 /* BiometricAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E561C3E12C15F5FC388FF7D /* BiometricAuthPlugin.swift */; };
 		F300880543DA54C8E6A6DB71 /* ColdstarStorageCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928A19FC975BD7B8C9C8CB2C /* ColdstarStorageCore.swift */; };
+		F7884EF8A86DFC783688ACDC /* SecureStorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E52DCF23A62DE27C400199C /* SecureStorePlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,6 +38,7 @@
 
 /* Begin PBXFileReference section */
 		12DDCF1D759B6016139268FC /* ColdstarUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ColdstarUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1E52DCF23A62DE27C400199C /* SecureStorePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SecureStorePlugin.swift; sourceTree = "<group>"; };
 		25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColdstarKeychain.swift; sourceTree = "<group>"; };
 		2E561C3E12C15F5FC388FF7D /* BiometricAuthPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BiometricAuthPlugin.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				25D238FA299B59787E5DD3BA /* ColdstarKeychain.swift */,
 				2E561C3E12C15F5FC388FF7D /* BiometricAuthPlugin.swift */,
 				5ECAC8BCC92E93759BE6A8B8 /* AppViewController.swift */,
+				1E52DCF23A62DE27C400199C /* SecureStorePlugin.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -257,6 +260,7 @@
 				5C0A3583EBE3FEC8439B27B9 /* ColdstarKeychain.swift in Sources */,
 				C9B634EDC3E21205221F72A1 /* BiometricAuthPlugin.swift in Sources */,
 				43E478F9F638DD949FB70750 /* AppViewController.swift in Sources */,
+				F7884EF8A86DFC783688ACDC /* SecureStorePlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
