@@ -11,6 +11,7 @@ import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { argon2id } from 'hash-wasm';
 import { detectUSBDevices, readFileFromUSB, writeFileToUSB } from './usb-flash';
+import { secureSet, secureGet, secureRemove } from './secure-store';
 
 const WALLET_STORAGE_KEY = 'coldstar_wallet_encrypted';
 const WALLET_META_KEY = 'coldstar_wallet_meta';
@@ -182,18 +183,39 @@ function generatePassphrase(): string {
   return uint8ToBase64(bytes);
 }
 
-/** Store the internal wallet passphrase for a specific wallet */
-export function storeWalletPassphrase(passphrase: string, pubkey?: string): void {
+/**
+ * Store the internal wallet passphrase (the key that decrypts the wallet) for a
+ * specific wallet. Now Keystore/Keychain-backed — NEVER plaintext localStorage.
+ */
+export async function storeWalletPassphrase(passphrase: string, pubkey?: string): Promise<void> {
   const key = pubkey || localStorage.getItem(ACTIVE_WALLET_KEY);
-  if (key) localStorage.setItem(perWalletKey(WALLET_PASSPHRASE_KEY, key), passphrase);
+  if (key) await secureSet(perWalletKey(WALLET_PASSPHRASE_KEY, key), passphrase);
 }
 
-/** Retrieve the stored internal wallet passphrase for the active wallet */
-export function getWalletPassphrase(): string | null {
+/**
+ * Retrieve the stored wallet passphrase for the active wallet from secure
+ * storage. Lazily migrates any legacy plaintext-localStorage value into secure
+ * storage on first read, then wipes the plaintext copy.
+ */
+export async function getWalletPassphrase(): Promise<string | null> {
   migrateToPerWalletStorage();
   const activeKey = localStorage.getItem(ACTIVE_WALLET_KEY);
   if (!activeKey) return null;
-  return localStorage.getItem(perWalletKey(WALLET_PASSPHRASE_KEY, activeKey));
+  const secureKey = perWalletKey(WALLET_PASSPHRASE_KEY, activeKey);
+
+  const inSecure = await secureGet(secureKey);
+  if (inSecure) return inSecure;
+
+  // One-time migration: pull a plaintext value (per-wallet or legacy single-key)
+  // into secure storage and remove the plaintext copies.
+  const legacy = localStorage.getItem(secureKey) || localStorage.getItem(WALLET_PASSPHRASE_KEY);
+  if (legacy) {
+    await secureSet(secureKey, legacy);
+    localStorage.removeItem(secureKey);
+    localStorage.removeItem(WALLET_PASSPHRASE_KEY);
+    return legacy;
+  }
+  return null;
 }
 
 /** Create a new wallet — encrypted key goes to USB, only metadata stored locally */
@@ -216,7 +238,7 @@ export async function createWallet(pin?: string, label: string = 'Main Wallet'):
 
   // Store ONLY metadata locally — no private key material on phone
   localStorage.setItem(perWalletKey(WALLET_META_KEY, pubkey), JSON.stringify(meta));
-  storeWalletPassphrase(encryptionKey, pubkey);
+  await storeWalletPassphrase(encryptionKey, pubkey);
   if (pin && pin.length >= 6) {
     const pinHash = await hashPin(pin);
     localStorage.setItem(perWalletKey(PIN_HASH_KEY, pubkey), pinHash);
@@ -255,7 +277,7 @@ export async function importWallet(secretKeyBase58: string, pin?: string, label:
 
   // Store ONLY metadata locally
   localStorage.setItem(perWalletKey(WALLET_META_KEY, pubkey), JSON.stringify(meta));
-  storeWalletPassphrase(encryptionKey, pubkey);
+  await storeWalletPassphrase(encryptionKey, pubkey);
   if (pin && pin.length >= 6) {
     const pinHash = await hashPin(pin);
     localStorage.setItem(perWalletKey(PIN_HASH_KEY, pubkey), pinHash);
@@ -349,7 +371,8 @@ export function deleteWallet(): void {
   const activeKey = localStorage.getItem(ACTIVE_WALLET_KEY);
   if (activeKey) {
     localStorage.removeItem(perWalletKey(WALLET_META_KEY, activeKey));
-    localStorage.removeItem(perWalletKey(WALLET_PASSPHRASE_KEY, activeKey));
+    localStorage.removeItem(perWalletKey(WALLET_PASSPHRASE_KEY, activeKey)); // legacy plaintext
+    void secureRemove(perWalletKey(WALLET_PASSPHRASE_KEY, activeKey));       // secure store
     localStorage.removeItem(perWalletKey(PIN_HASH_KEY, activeKey));
     removeFromWalletRegistry(activeKey);
   }
@@ -406,7 +429,8 @@ export function switchWallet(publicKey: string): boolean {
 /** Remove a wallet's local metadata (keys remain on USB) */
 export function removeWallet(publicKey: string): void {
   localStorage.removeItem(perWalletKey(WALLET_META_KEY, publicKey));
-  localStorage.removeItem(perWalletKey(WALLET_PASSPHRASE_KEY, publicKey));
+  localStorage.removeItem(perWalletKey(WALLET_PASSPHRASE_KEY, publicKey)); // legacy plaintext
+  void secureRemove(perWalletKey(WALLET_PASSPHRASE_KEY, publicKey));       // secure store
   localStorage.removeItem(perWalletKey(PIN_HASH_KEY, publicKey));
   removeFromWalletRegistry(publicKey);
 
@@ -502,7 +526,7 @@ export async function registerUSBWallet(
   localStorage.setItem(ACTIVE_WALLET_KEY, publicKey);
 
   if (pin) {
-    storeWalletPassphrase(pin, publicKey);
+    await storeWalletPassphrase(pin, publicKey);
     if (pin.length >= 6) {
       const ph = await hashPin(pin);
       localStorage.setItem(perWalletKey(PIN_HASH_KEY, publicKey), ph);
