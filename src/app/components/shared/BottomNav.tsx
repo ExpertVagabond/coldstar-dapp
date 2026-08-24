@@ -1,4 +1,4 @@
-import { Home, History, Layers, Compass, Coins } from 'lucide-react';
+import { Home, History, Layers, Compass, Coins, Star } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 
@@ -7,6 +7,7 @@ const tabs = [
   { id: 'rwa', label: 'Assets', icon: Coins, path: '/app/rwa' },
   { id: 'history', label: 'History', icon: History, path: '/app/history' },
   { id: 'stake', label: 'Stake', icon: Layers, path: '/app/stake' },
+  { id: 'quests', label: 'Quests', icon: Star, path: '/app/quests' },
   { id: 'explore', label: 'Explore', icon: Compass, path: '/app/explore' },
 ];
 

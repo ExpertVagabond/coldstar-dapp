@@ -85,6 +85,28 @@ simulator, enroll Face ID via Features → Face ID before testing the unlock pat
    "update the app" — it never misparses. (Both ✅ — iOS native + shared TS.)
 4. One approval per real ask: repeated escalations/notifications coalesce.
 
+## 4b. Quest board message signing (added 2026-08-24)
+
+The quest board (`/app/quests`, `src/services/quests.ts`) proves wallet ownership
+with an ed25519 signature over a server-issued challenge string. It is the first
+feature that signs something which is **not** a Solana transaction, so it is
+recorded here.
+
+| Item | Detail | Android/Seeker | iOS |
+|---|---|---|---|
+| Challenge string | Issued by `GET coldstar.dev/api/quests/challenge`; never composed client-side | shared TS | shared TS |
+| Signing path | `getKeypair(pin)` → `ed25519.sign(secretKey[0..32], msg)` (`@noble/curves`) | shared TS ✅ | shared TS ✅ |
+| PIN capture | `PinVerification` (biometric-first) | ✅ | ✅ |
+| Nothing broadcast | No transaction built, no RPC send | ✅ | ✅ |
+
+**Shared-invariant note (§4.1):** this path decrypts the keypair into JS to sign,
+so plaintext key bytes DO exist in the WebView for the duration of the signature
+— unlike transaction signing, which goes through the native FFI. That is a
+widening of the documented §4.1 exception, not a new class of leak, but it is a
+deliberate trade and should be raised with Hashlock. **Backlog (owner: both
+platforms):** move quest-message signing behind the same native FFI sign entry
+point transaction signing uses, so the keypair never enters JS.
+
 ## 5. Process
 
 - Changing the volume format → bump `formatVersion` in **both**

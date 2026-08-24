@@ -9,6 +9,7 @@ import { Home } from './components/main/Home';
 import { History } from './components/main/History';
 import { Stake } from './components/main/Stake';
 import { Explore } from './components/main/Explore';
+import { Quests } from './components/main/Quests';
 import { RWA } from './components/main/RWA';
 import { AssetDetail } from './components/main/AssetDetail';
 import { Send } from './components/transaction/Send';
@@ -60,6 +61,10 @@ export const router = createBrowserRouter([
   {
     path: '/app/explore',
     Component: Explore,
+  },
+  {
+    path: '/app/quests',
+    Component: Quests,
   },
   {
     path: '/app/asset/:id',
