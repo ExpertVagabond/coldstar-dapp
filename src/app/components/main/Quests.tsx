@@ -30,6 +30,9 @@ export function Quests() {
   const [busyStep, setBusyStep] = useState<string | null>(null);
   const [pinFor, setPinFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; bad?: boolean } | null>(null);
+  // Proof links for steps the server flags with needsProof (e.g. repost the
+  // launch post). Kept here so a board refresh does not wipe what was typed.
+  const [proofs, setProofs] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -57,7 +60,7 @@ export function Quests() {
     setBusyStep(stepId);
     setNotice(null);
     try {
-      const res = await claimStep(wallet, stepId, pin);
+      const res = await claimStep(wallet, stepId, pin, { proofUrl: proofs[stepId] });
       if (res.ok) {
         let text = res.already ? 'Already claimed.' : `+${(res.awarded || 0).toLocaleString()} pts`;
         if (res.bonusAwarded) text += ` · campaign bonus +${res.bonusAwarded.toLocaleString()} pts`;
@@ -88,10 +91,11 @@ export function Quests() {
         </div>
       );
     }
+    const awaitingProof = step.needsProof && !(proofs[step.id] || '').trim();
     return (
       <button
         onClick={() => setPinFor(step.id)}
-        disabled={!wallet}
+        disabled={!wallet || awaitingProof}
         className="flex-none rounded-xl border-[1.5px] border-emerald-400 px-3 py-2.5 text-emerald-400 text-xs font-mono
                    active:bg-emerald-400 active:text-black disabled:border-white/15 disabled:text-white/30 transition-colors"
       >
@@ -133,6 +137,21 @@ export function Quests() {
                   {s.title}
                 </div>
                 {s.description && <p className="text-[12px] leading-snug text-white/40 mt-0.5">{s.description}</p>}
+                {s.needsProof && !s.done && wallet && (
+                  <input
+                    type="url"
+                    inputMode="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    value={proofs[s.id] || ''}
+                    onChange={(e) => setProofs((p) => ({ ...p, [s.id]: e.target.value }))}
+                    placeholder="Paste the link to your post"
+                    className="mt-2 w-full rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2
+                               text-[12px] font-mono text-white placeholder:text-white/30
+                               focus:outline-none focus:border-cyan-300/60"
+                  />
+                )}
               </div>
               {pill(s)}
             </div>

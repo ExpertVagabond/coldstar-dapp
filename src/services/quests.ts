@@ -23,6 +23,8 @@ export interface QuestStep {
   description: string | null;
   points: number;
   verifyKind: string;
+  /** Server-derived: this step needs a proof link (e.g. a post URL) to claim. */
+  needsProof?: boolean;
   actionUrl: string | null;
   icon: string | null;
   iconUrl: string | null;
@@ -94,13 +96,6 @@ export async function fetchLeaderboard(
 }
 
 /**
- * Claim one step. Requires the wallet PIN because proving ownership means
- * producing a real ed25519 signature over the server's challenge string.
- *
- * The challenge is fetched from the server rather than composed here so the
- * signed bytes can never drift from what the verifier reconstructs.
- */
-/**
  * App attestation for custody/product steps.
  *
  * "This wallet provisioned a drive" has no on-chain footprint and no signature
@@ -127,7 +122,25 @@ async function attestFor(wallet: string, stepId: string, issuedAt: string): Prom
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function claimStep(wallet: string, stepId: string, pin: string, ref?: string): Promise<ClaimResult> {
+export interface ClaimOptions {
+  /** Link evidence for steps the server flags with needsProof. */
+  proofUrl?: string;
+  ref?: string;
+}
+
+/**
+ * Claim one step. Requires the wallet PIN because proving ownership means
+ * producing a real ed25519 signature over the server's challenge string.
+ *
+ * The challenge is fetched from the server rather than composed here so the
+ * signed bytes can never drift from what the verifier reconstructs.
+ */
+export async function claimStep(
+  wallet: string,
+  stepId: string,
+  pin: string,
+  opts: ClaimOptions = {}
+): Promise<ClaimResult> {
   const cr = await fetch(`${API}/challenge?wallet=${encodeURIComponent(wallet)}&step=${encodeURIComponent(stepId)}`);
   const challenge = await cr.json();
   if (!challenge.ok) return { ok: false, error: challenge.error || 'Could not start verification' };
@@ -156,7 +169,8 @@ export async function claimStep(wallet: string, stepId: string, pin: string, ref
       issuedAt: challenge.issuedAt,
       signature,
       attestation,
-      ref: ref || '',
+      proofUrl: opts.proofUrl || '',
+      ref: opts.ref || '',
     }),
   });
   return (await r.json()) as ClaimResult;
