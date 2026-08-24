@@ -100,6 +100,33 @@ export async function fetchLeaderboard(
  * The challenge is fetched from the server rather than composed here so the
  * signed bytes can never drift from what the verifier reconstructs.
  */
+/**
+ * App attestation for custody/product steps.
+ *
+ * "This wallet provisioned a drive" has no on-chain footprint and no signature
+ * a server could check, so the app vouches for it with an HMAC over the same
+ * server-issued challenge the ed25519 signature covers. That binding is what
+ * stops an attestation being precomputed or replayed.
+ *
+ * This is attestation, not proof: the secret ships in the bundle and is
+ * extractable. It stops curl, not a determined reverse-engineer. The server
+ * additionally requires a verified on-chain step before crediting, so farming
+ * costs real $COLD. Platform attestation (Play Integrity / App Attest) is the
+ * upgrade path — see PLATFORM-PARITY.md §4c.
+ */
+async function attestFor(wallet: string, stepId: string, issuedAt: string): Promise<string | undefined> {
+  const secret = import.meta.env.VITE_APP_ATTEST_SECRET;
+  if (!secret) return undefined; // server fails closed; nothing is credited
+
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
+  const msg = ['coldstar-app-attest-v1', wallet, stepId, issuedAt].join('|');
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function claimStep(wallet: string, stepId: string, pin: string, ref?: string): Promise<ClaimResult> {
   const cr = await fetch(`${API}/challenge?wallet=${encodeURIComponent(wallet)}&step=${encodeURIComponent(stepId)}`);
   const challenge = await cr.json();
@@ -117,10 +144,20 @@ export async function claimStep(wallet: string, stepId: string, pin: string, ref
     return { ok: false, error: e?.message === 'Invalid PIN' ? 'Incorrect PIN' : 'Could not sign — check your PIN' };
   }
 
+  // Only the app can attest product steps; harmless to send for every step.
+  const attestation = await attestFor(wallet, stepId, challenge.issuedAt);
+
   const r = await fetch(`${API}/claim`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ wallet, stepId, issuedAt: challenge.issuedAt, signature, ref: ref || '' }),
+    body: JSON.stringify({
+      wallet,
+      stepId,
+      issuedAt: challenge.issuedAt,
+      signature,
+      attestation,
+      ref: ref || '',
+    }),
   });
   return (await r.json()) as ClaimResult;
 }

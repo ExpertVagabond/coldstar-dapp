@@ -107,6 +107,35 @@ deliberate trade and should be raised with Hashlock. **Backlog (owner: both
 platforms):** move quest-message signing behind the same native FFI sign entry
 point transaction signing uses, so the keypair never enters JS.
 
+## 4c. Quest custody attestation (added 2026-08-24)
+
+The custody quests ("provisioned a drive", "signed air-gapped") are claimed from
+inside the app. **They cannot be proven cryptographically**: provisioning is an
+offline USB operation with no on-chain footprint, and a keypair generated on a
+Coldstar drive is indistinguishable from any other keypair. So the app *attests*
+them instead, with an HMAC over the same server-issued challenge the ed25519
+signature covers.
+
+| Item | Detail | Android/Seeker | iOS |
+|---|---|---|---|
+| Attestation | HMAC-SHA256 over `coldstar-app-attest-v1\|wallet\|step\|issuedAt` | shared TS (`services/quests.ts`) | shared TS |
+| Secret | `VITE_APP_ATTEST_SECRET`, must match the `APP_ATTEST_SECRET` Pages secret | build-time env | build-time env |
+| Server check | `functions/_lib/attest.js`; fails closed with no secret | n/a | n/a |
+
+**What this is worth, stated plainly.** The secret is inlined into the bundle by
+Vite, so it IS extractable from a shipped APK/IPA. It stops direct API calls and
+replay; it does not stop a determined reverse-engineer. Residual risk is bounded
+by the server: custody steps are one-time per wallet (ledger PK) and are gated
+behind a verified on-chain step, so a farmed wallet must hold real $COLD first.
+`first-airgap-sign` additionally requires real Solana transaction history — the
+only part of the claim a server can prove outright.
+
+**Backlog (owner: both platforms):** replace the shared secret with platform
+attestation — Play Integrity (Android) and App Attest (iOS) — which proves the
+request came from a genuine unmodified install without shipping a secret at all.
+Rotating `APP_ATTEST_SECRET` requires a coordinated app release; treat it as a
+release-gated value, not a hot-rotatable one.
+
 ## 5. Process
 
 - Changing the volume format → bump `formatVersion` in **both**
