@@ -1,5 +1,6 @@
 [package]
 name = "coldstar-ffi"
+authors = ["Matthew Karsten <matthewkarstenconnects@gmail.com>"]
 version.workspace = true
 edition.workspace = true
 

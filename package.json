@@ -1,5 +1,6 @@
 {
   "name": "@figma/my-make-file",
+  "author": "Matthew Karsten <matthewkarstenconnects@gmail.com>",
   "private": true,
   "version": "0.0.1",
   "type": "module",

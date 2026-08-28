@@ -1,5 +1,6 @@
 [package]
 name = "coldstar-crypto"
+authors = ["Matthew Karsten <matthewkarstenconnects@gmail.com>"]
 version.workspace = true
 edition.workspace = true
 
