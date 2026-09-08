@@ -12,5 +12,6 @@ class AppViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(ColdstarStoragePlugin())
         bridge?.registerPluginInstance(BiometricAuthPlugin())
+        bridge?.registerPluginInstance(SecureStorePlugin())
     }
 }
